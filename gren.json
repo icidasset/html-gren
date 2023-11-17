@@ -2,9 +2,9 @@
   "type": "package",
   "platform": "common",
   "name": "icidasset/html-gren",
-  "summary": "HTML",
+  "summary": "Transmutable HTML",
   "license": "BSD-3-Clause",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "exposed-modules": [
     "Transmutable.Html",
     "Transmutable.Html.Attributes",
