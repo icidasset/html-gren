@@ -1,4 +1,4 @@
-A HTML package for [Gren](https://gren-lang.org/).
+__A HTML package for [Gren](https://gren-lang.org/).__
 
 🐉 I haven't properly tested this package yet, so there be dragons.
 
@@ -25,6 +25,6 @@ html
 ```
 
 
-## Thanks
+## Thanks to
 
-Based on [elm-html-string](https://github.com/zwilias/elm-html-string).
+This project is based on [elm-html-string](https://github.com/zwilias/elm-html-string).
