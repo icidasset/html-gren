@@ -1,0 +1,241 @@
+module Transmutable.Html.Internal.String exposing ( toString )
+
+import Json.Encode
+import Transmutable.Html.Interior exposing (..)
+
+
+toString :
+    { indent : Int
+    }
+    -> Html msg
+    -> String
+toString options html =
+    toString_
+        { indent = options.indent
+        , level = 0
+        }
+        html
+
+
+toString_ :
+    { indent : Int
+    , level : Int
+    }
+    -> Html msg
+    -> String
+toString_ options =
+    transmute
+        { node =
+            \{ tagName } attributes _ ->
+                { tag = tag tagName attributes
+                , tagName = tagName
+                }
+        , injectDescendants =
+            \parent descendants ->
+                case descendants of
+                    [] ->
+                        parent.tag
+                            { isClosed = True
+                            }
+
+                    _ ->
+                        parent.tag
+                            { isClosed = False
+                            }
+                            ++ String.join "" descendants
+                            ++ closingTag parent.tagName
+        , text = escapeText
+        }
+
+
+
+-- UTILS
+
+
+attributesToString : Array (Attribute msg) -> Array String
+attributesToString attrs =
+    let
+        collect attr acc =
+            case attr of
+                Attribute "class" value ->
+                    { acc | classes = Array.pushLast value acc.classes }
+
+                Attribute key value ->
+                    { acc | rest = Array.pushLast (buildProp key value) acc.rest }
+
+                BoolProperty string isEnabled ->
+                    if isEnabled then
+                        { acc | rest = Array.pushLast (propName string) acc.rest }
+                    else
+                        acc
+
+                Event _ _ ->
+                    -- Events are ignored
+                    acc
+
+                StringProperty key value ->
+                    collect (Attribute (propName key) value) acc
+
+                Style key value ->
+                    { acc | styles = Array.pushLast (escapeAttributePart key ++ ": " ++ escapeAttributePart value) acc.styles }
+
+                ValueProperty key value ->
+                    { acc | rest = Array.pushLast (buildProp (propName key) (Json.Encode.encode 0 value)) acc.rest }
+    in
+    attrs
+        |> Array.foldl
+                collect
+                { classes = []
+                , rest = []
+                , styles = []
+                }
+        |> (\acc ->
+                if Array.isEmpty acc.classes then
+                    { styles = acc.styles
+                    , rest = acc.rest
+                    }
+                else
+                    acc.classes
+                        |> String.join " "
+                        |> (\val ->
+                                { styles = acc.styles
+                                , rest = Array.pushFirst (buildProp "class" val) acc.rest
+                                }
+                            )
+            )
+        |> (\acc ->
+                if Array.isEmpty acc.styles then
+                    acc.rest
+                else
+                    acc.styles
+                        |> String.join "; "
+                        |> (\val -> Array.pushFirst (buildProp "style" val) acc.rest)
+            )
+
+
+buildProp : String -> String -> String
+buildProp key value =
+    key ++ "=\"" ++ escapeAttributePart value ++ "\""
+
+
+closingTag : String -> String
+closingTag tagName =
+    "</" ++ tagName ++ ">"
+
+
+escapeAttributePart : String -> String
+escapeAttributePart =
+    String.foldl
+        (\char acc ->
+            if char == '\"' then
+                acc ++ "\\\""
+            else
+                acc ++ String.fromChar char
+        )
+        ""
+
+
+escapeText : String -> String
+escapeText =
+    String.replace "&" "&amp;" >> String.replace "<" "&lt;" >> String.replace ">" "&gt;"
+
+
+hyphenate : String -> String
+hyphenate =
+    String.foldl
+        (\char acc ->
+            if Char.isUpper char then
+                acc ++ "-" ++ String.fromChar (Char.toLower char)
+            else
+                acc ++ String.fromChar char
+        )
+        ""
+
+
+propName : String -> String
+propName prop =
+    case prop of
+        "className" ->
+            "class"
+
+        "defaultValue" ->
+            "value"
+
+        "htmlFor" ->
+            "for"
+
+        _ ->
+            prop
+
+
+tag :
+    String
+    -> Array (Attribute msg)
+    -> { isClosed : Bool
+       }
+    -> String
+tag tagName attributes { isClosed } =
+    let
+        lowercaseTagName =
+            String.toLower tagName
+    in
+    String.append
+        (case lowercaseTagName of
+            "html" ->
+                "<!DOCTYPE html>"
+
+            _ ->
+                ""
+        )
+        ("<"
+            ++ String.join " " (Array.pushFirst tagName (attributesToString attributes))
+            ++ (if isClosed then
+                    case lowercaseTagName of
+                        "area" ->
+                            " />"
+
+                        "base" ->
+                            " />"
+
+                        "br" ->
+                            " />"
+
+                        "col" ->
+                            " />"
+
+                        "embed" ->
+                            " />"
+
+                        "hr" ->
+                            " />"
+
+                        "img" ->
+                            " />"
+
+                        "input" ->
+                            " />"
+
+                        "link" ->
+                            " />"
+
+                        "meta" ->
+                            " />"
+
+                        "param" ->
+                            " />"
+
+                        "source" ->
+                            " />"
+
+                        "track" ->
+                            " />"
+
+                        "wbr" ->
+                            " />"
+
+                        t ->
+                            "></" ++ t ++ ">"
+                 else
+                    ">"
+                )
+        )
