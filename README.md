@@ -33,7 +33,7 @@ You can also convert this HTML to `VirtualDom` using [this package](https://pack
 
 ## Demo
 
-I've used this for my [tokono.ma](https://tokono.ma) website, which is a "hybrid" Gren app (both static and dynamic). This package is used there to write static HTML files and render the same HTML templates using Gren's `VirtualDom` module from the browser package.
+I've used this for my [tokono.ma](https://github.com/icidasset/tokono.ma/) website, which is a "hybrid" Gren app (both static and dynamic). This package is used there to write static HTML files and render the same HTML templates using Gren's `VirtualDom` module from the browser package.
 
 
 ## Thanks to
