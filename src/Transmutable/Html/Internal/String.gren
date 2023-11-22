@@ -44,7 +44,14 @@ toString_ options =
                             }
                             ++ String.join "" descendants
                             ++ closingTag parent.tagName
-        , text = escapeText
+        , text =
+            \{ parentNodeProperties } ->
+                case parentNodeProperties of
+                    Just { tagName = "script" } ->
+                        identity
+
+                    _ ->
+                        escapeText
         }
 
 

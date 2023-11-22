@@ -166,37 +166,38 @@ mapEventDecoder fn eventDecoder =
                 )
 
 
+
+-- TRANSMUTATION
+
+
+{-|-}
+type alias TransmuteContext =
+    { namespace : Maybe String
+    , parentNodeProperties : Maybe NodeProperties
+    }
+
+
 {-| Use this helper function to translate `Html` into another data type.
 -}
 transmute :
-    { node :
-        NodeProperties
-        -> Array (Attribute msg)
-        -> { namespace : Maybe String
-           }
-        -> outcome
+    { node : NodeProperties -> Array (Attribute msg) -> TransmuteContext -> outcome
     , injectDescendants : outcome -> Array transmuted -> transmuted
-    , text : String -> transmuted
+    , text : TransmuteContext -> String -> transmuted
     }
     -> Html msg
     -> transmuted
 transmute =
     transmute_
         { namespace = Nothing
+        , parentNodeProperties = Nothing
         }
 
 
 transmute_ :
-    { namespace : Maybe String
-    }
-    -> { node :
-            NodeProperties
-            -> Array (Attribute msg)
-            -> { namespace : Maybe String
-               }
-            -> outcome
+    TransmuteContext
+    -> { node : NodeProperties -> Array (Attribute msg) -> TransmuteContext -> outcome
        , injectDescendants : outcome -> Array transmuted -> transmuted
-       , text : String -> transmuted
+       , text : TransmuteContext -> String -> transmuted
        }
     -> Html msg
     -> transmuted
@@ -226,7 +227,7 @@ transmute_ context manager html =
                                             Nothing
                                 )
 
-                newContext =
+                contextWithXmlns =
                     -- If the `xmlns` attribute is present,
                     -- the active XML namespace will change.
                     case xmlns of
@@ -235,13 +236,16 @@ transmute_ context manager html =
 
                         Nothing ->
                             context
+
+                contextWithParent =
+                    { contextWithXmlns | parentNodeProperties = Just props }
             in
             manager.injectDescendants
-                (manager.node props attributes newContext)
+                (manager.node props attributes contextWithParent)
                 (case descendants of
                     Regular array ->
-                        Array.map (transmute_ newContext manager) array
+                        Array.map (transmute_ contextWithParent manager) array
                 )
 
         TextNode text ->
-            manager.text text
+            manager.text context text

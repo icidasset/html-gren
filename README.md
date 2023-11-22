@@ -12,7 +12,9 @@ someHtml =
     [ A.lang "en" ]
     [ head
         []
-        [ A.title "HTML document" ]
+        [ title
+            [ text "HTML document" ]
+        ]
     , body
         []
         [ main_
