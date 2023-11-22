@@ -4,7 +4,7 @@ __A HTML package for [Gren](https://gren-lang.org/).__
 
 
 ```gren
-import Transmutable.Html exposing (Html, html, head, body, main_, h1, text)
+import Transmutable.Html exposing (Html, html, head, title, body, main_, h1, text)
 import Transmutable.Html.Attributes as A (Attribute)
 
 someHtml =
