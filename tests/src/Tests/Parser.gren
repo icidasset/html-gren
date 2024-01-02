@@ -1,0 +1,302 @@
+module Tests.Parser exposing ( tests )
+
+import Expect
+import Test exposing (..)
+import Transmutable.Html.Interior exposing (..)
+import Transmutable.Html.Parser as Html
+
+
+
+-- TESTS
+
+
+tests =
+    describe
+        "HTML parsing"
+        [ commonmark
+        , nesting
+        ]
+
+
+commonmark =
+    describe
+        "Commonmark Spec Examples (612-632)"
+        [ testHtml
+            "<a></a><bab></bab><c2c></c2c>"
+            [ Node
+                { key = Nothing
+                , tagName = "a"
+                }
+                []
+                (Regular [])
+            , Node
+                { key = Nothing
+                , tagName = "bab"
+                }
+                []
+                (Regular [])
+            , Node
+                { key = Nothing
+                , tagName = "c2c"
+                }
+                []
+                (Regular [])
+            ]
+            -- 
+        , testHtml
+            "<a/><b2/>"
+            [ Node
+                { key = Nothing
+                , tagName = "a"
+                }
+                []
+                (Regular [])
+            , Node
+                { key = Nothing
+                , tagName = "b2"
+                }
+                []
+                (Regular [])
+            ]
+
+        , -- 
+          testHtml
+            "<a  /><b2\ndata=\"foo\" />"
+            [ Node
+                { key = Nothing
+                , tagName = "a"
+                }
+                []
+                (Regular [])
+            , Node
+                { key = Nothing
+                , tagName = "b2"
+                }
+                [ Attribute "data" "foo"
+                ]
+                (Regular [])
+            ]
+
+        , -- 
+          testHtml
+            "<a foo=\"bar\" bam = \'baz <em>\"</em>\' _boolean zoop:33=zoop:33 />"
+            [ Node
+                { key = Nothing
+                , tagName = "a"
+                }
+                [ Attribute "foo" "bar"
+                , Attribute "bam" "baz <em>\"</em>"
+                , Attribute "_boolean" ""
+                , Attribute "zoop:33" "zoop:33"
+                ]
+                (Regular [])
+            ]
+
+        , -- 
+          testHtml
+            "Foo <responsive-image src=\"foo.jpg\" />"
+            [ TextNode "Foo "
+            , Node
+                { key = Nothing
+                , tagName = "responsive-image"
+                }
+                [ Attribute "src" "foo.jpg"
+                ]
+                (Regular [])
+            ]
+
+        , -- 
+          testHtml
+            "<33> <__>"
+            [ TextNode "<33> <__>"
+            ]
+
+        , -- 
+          testHtml
+            "<a h*#ref=\"hi\">"
+            [ TextNode "<a h*#ref=\"hi\">"
+            ]
+
+        , -- 
+          testHtml
+            "<a href=\"hi\'> <a href=hi\'>"
+            [ TextNode "<a href=\"hi\'> <a href=hi\'>"
+            ]
+
+        , -- 
+          testHtml
+            "< a><\nfoo><bar/ >\n<foo bar=baz\nbim!bop />"
+            [ TextNode "< a><\nfoo><bar/ >\n<foo bar=baz\nbim!bop />"
+            ]
+
+        , -- 
+          testHtml
+            "<a href=\'bar\'title=title>"
+            [ TextNode "<a href=\'bar\'title=title>"
+            ]
+
+        , -- 
+          testHtml
+            "<a></a><foo></foo >"
+            [ Node
+                { key = Nothing
+                , tagName = "a"
+                }
+                []
+                (Regular [])
+            , Node
+                { key = Nothing
+                , tagName = "foo"
+                }
+                []
+                (Regular [])
+            ]
+
+        , -- 
+          testHtml
+            "<a></a href=\"foo\">"
+            [ TextNode "<a></a href=\"foo\">"
+            ]
+
+        , -- 
+          testHtml
+            "foo <!-- this is a\ncomment - with hyphen -->"
+            [ TextNode "foo "
+            , Comment " this is a\ncomment - with hyphen "
+            ]
+
+        , -- 
+          testHtml
+            "foo <!-- not a comment -- two hyphens -->"
+            [ TextNode "foo <!-- not a comment -- two hyphens -->"
+            ]
+
+        , -- 
+          testHtml
+            "foo <!--> foo -->\n\nfoo <!-- foo--->"
+            [ TextNode "foo <!--> foo -->\n\nfoo <!-- foo--->"
+            ]
+
+        , -- 
+          testHtml
+            "foo <?php echo $a; ?>"
+            [ TextNode "foo "
+            , ProcessingInstruction "php echo $a; "
+            ]
+
+        , -- 
+          testHtml
+            "foo <!ELEMENT br EMPTY>"
+            [ TextNode "foo "
+            , Declaration "ELEMENT br EMPTY"
+            ]
+
+        , -- 
+          testHtml
+            "foo <![CDATA[>&<]]>"
+            [ TextNode "foo "
+            , Cdata ">&<"
+            ]
+
+        , -- 
+          testHtml
+            "foo <a href=\"&ouml;\" />"
+            [ TextNode "foo "
+            , Node
+                { key = Nothing
+                , tagName = "a"
+                }
+                [ Attribute "href" "&ouml;"
+                ]
+                (Regular [])
+            ]
+
+        , -- 
+          testHtml
+            "foo <a href=\"\\*\" />"
+            [ TextNode "foo "
+            , Node
+                { key = Nothing
+                , tagName = "a"
+                }
+                [ Attribute "href" "\\*"
+                ]
+                (Regular [])
+            ]
+            -- Skipped: <a href="\"">
+        ]
+
+
+
+-- ADDITIONAL
+
+
+nesting =
+    describe
+        "Nesting"
+        [ testHtml
+            "<a><b><c /></b></a><d><span-1></span-1 ></d\n><e /><f\n></f\n>"
+            [ Node
+                { key = Nothing
+                , tagName = "a"
+                }
+                []
+                (Regular
+                    [ Node
+                        { key = Nothing
+                        , tagName = "b"
+                        }
+                        []
+                        (Regular
+                            [ Node
+                                { key = Nothing
+                                , tagName = "c"
+                                }
+                                []
+                                (Regular [])
+                            ]
+                        )
+                    ]
+                )
+            , Node
+                { key = Nothing
+                , tagName = "d"
+                }
+                []
+                (Regular
+                    [ Node
+                        { key = Nothing
+                        , tagName = "span-1"
+                        }
+                        []
+                        (Regular [])
+                    ]
+                )
+            , Node
+                { key = Nothing
+                , tagName = "e"
+                }
+                []
+                (Regular [])
+            , Node
+                { key = Nothing
+                , tagName = "f"
+                }
+                []
+                (Regular [])
+            ]
+        ]
+
+
+
+-- 🛠️
+
+
+testHtml string expectedResult =
+    test
+        string
+        (\_ ->
+            string
+                |> Html.parse
+                |> Expect.equal (Ok expectedResult)
+        )

@@ -27,7 +27,11 @@ import Json.Decode exposing ( Decoder, Value )
 
 {-|-}
 type Html msg
-    = Node NodeProperties (Array (Attribute msg)) (Descendants msg)
+    = Cdata String
+    | Comment String
+    | Declaration String
+    | Node NodeProperties (Array (Attribute msg)) (Descendants msg)
+    | ProcessingInstruction String
     | TextNode String
 
 
@@ -87,13 +91,25 @@ type EventDecoder msg
 
 {-|-}
 map : (a -> b) -> Html a -> Html b
-map f node =
-    case node of
+map f html =
+    case html of
+        Cdata a ->
+            Cdata a
+
+        Comment a ->
+            Comment a
+
+        Declaration a ->
+            Declaration a
+
         Node props attrs descendants ->
             Node props (Array.map (mapAttribute f) attrs) (mapDescendants f descendants)
 
-        TextNode content ->
-            TextNode content
+        ProcessingInstruction a ->
+            ProcessingInstruction a
+
+        TextNode a ->
+            TextNode a
 
 
 mapAttribute : (a -> b) -> Attribute a -> Attribute b
@@ -172,7 +188,8 @@ mapEventDecoder fn eventDecoder =
 
 {-|-}
 type alias TransmuteContext =
-    { namespace : Maybe String
+    { level : Int
+    , namespace : Maybe String
     , parentNodeProperties : Maybe NodeProperties
     }
 
@@ -181,14 +198,19 @@ type alias TransmuteContext =
 -}
 transmute :
     { node : NodeProperties -> Array (Attribute msg) -> TransmuteContext -> outcome
-    , injectDescendants : outcome -> Array transmuted -> transmuted
+    , injectDescendants : outcome -> Array transmuted -> TransmuteContext -> transmuted
+    , cdata : TransmuteContext -> String -> transmuted
+    , comment : TransmuteContext -> String -> transmuted
+    , declaration : TransmuteContext -> String -> transmuted
+    , processingInstruction : TransmuteContext -> String -> transmuted
     , text : TransmuteContext -> String -> transmuted
     }
     -> Html msg
     -> transmuted
 transmute =
     transmute_
-        { namespace = Nothing
+        { level = 1
+        , namespace = Nothing
         , parentNodeProperties = Nothing
         }
 
@@ -196,7 +218,11 @@ transmute =
 transmute_ :
     TransmuteContext
     -> { node : NodeProperties -> Array (Attribute msg) -> TransmuteContext -> outcome
-       , injectDescendants : outcome -> Array transmuted -> transmuted
+       , injectDescendants : outcome -> Array transmuted -> TransmuteContext -> transmuted
+       , cdata : TransmuteContext -> String -> transmuted
+       , comment : TransmuteContext -> String -> transmuted
+       , declaration : TransmuteContext -> String -> transmuted
+       , processingInstruction : TransmuteContext -> String -> transmuted
        , text : TransmuteContext -> String -> transmuted
        }
     -> Html msg
@@ -238,7 +264,10 @@ transmute_ context manager html =
                             context
 
                 contextWithParent =
-                    { contextWithXmlns | parentNodeProperties = Just props }
+                    { contextWithXmlns
+                        | level = context.level + 1
+                        , parentNodeProperties = Just props
+                    }
             in
             manager.injectDescendants
                 (manager.node props attributes contextWithParent)
@@ -246,6 +275,20 @@ transmute_ context manager html =
                     Regular array ->
                         Array.map (transmute_ contextWithParent manager) array
                 )
+                contextWithParent
+
+        -- 
+        Cdata a ->
+            manager.cdata context a
+
+        Comment a ->
+            manager.comment context a
+
+        Declaration a ->
+            manager.declaration context a
+
+        ProcessingInstruction a ->
+            manager.processingInstruction context a
 
         TextNode text ->
             manager.text context text

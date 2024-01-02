@@ -1,0 +1,20 @@
+module Tests exposing ( main )
+
+import Test
+import Test.Runner.Node exposing ( Program, run )
+import Tests.Parser
+
+
+main : Program
+main =
+    run all
+
+
+
+-- TESTS
+
+
+all =
+    Test.concat
+        [ Tests.Parser.tests
+        ]

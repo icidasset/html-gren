@@ -9,21 +9,11 @@ toString :
     }
     -> Html msg
     -> String
-toString options html =
-    toString_
-        { indent = options.indent
-        , level = 0
-        }
-        html
-
-
-toString_ :
-    { indent : Int
-    , level : Int
-    }
-    -> Html msg
-    -> String
-toString_ options =
+toString options =
+    let
+        useLineBreaks =
+            options.indent > 0
+    in
     transmute
         { node =
             \{ tagName } attributes _ ->
@@ -31,19 +21,40 @@ toString_ options =
                 , tagName = tagName
                 }
         , injectDescendants =
-            \parent descendants ->
-                case descendants of
-                    [] ->
-                        parent.tag
-                            { isClosed = True
-                            }
+            \parent descendants context ->
+                let
+                    prefix =
+                        ' '
+                            |> Array.repeat (options.indent * (context.level - 2))
+                            |> String.fromArray
+                            |> String.append "\n"
+                in
+                String.append
+                    prefix
+                    (case descendants of
+                        [] ->
+                            parent.tag
+                                { isClosed = True
+                                }
 
-                    _ ->
-                        parent.tag
-                            { isClosed = False
-                            }
-                            ++ String.join "" descendants
-                            ++ closingTag parent.tagName
+                        _ ->
+                            parent.tag
+                                { isClosed = False
+                                }
+                                ++ String.join "" descendants
+                                ++ (if useLineBreaks then
+                                        prefix
+                                     else
+                                        ""
+                                    )
+                                ++ closingTag parent.tagName
+                    )
+
+        , -- 
+          cdata = \_ cdata -> "<![CDATA[" ++ cdata ++ "]]>"
+        , comment = \_ comment -> "<!--" ++ comment ++ "-->"
+        , declaration = \_ declaration -> "<!" ++ declaration ++ ">"
+        , processingInstruction = \_ processingInstruction -> "<?" ++ processingInstruction ++ "?>"
         , text =
             \{ parentNodeProperties } ->
                 case parentNodeProperties of
@@ -186,63 +197,54 @@ tag tagName attributes { isClosed } =
         lowercaseTagName =
             String.toLower tagName
     in
-    String.append
-        (case lowercaseTagName of
-            "html" ->
-                "<!DOCTYPE html>"
+    "<"
+        ++ String.join " " (Array.pushFirst tagName (attributesToString attributes))
+        ++ (if isClosed then
+                case lowercaseTagName of
+                    "area" ->
+                        " />"
 
-            _ ->
-                ""
-        )
-        ("<"
-            ++ String.join " " (Array.pushFirst tagName (attributesToString attributes))
-            ++ (if isClosed then
-                    case lowercaseTagName of
-                        "area" ->
-                            " />"
+                    "base" ->
+                        " />"
 
-                        "base" ->
-                            " />"
+                    "br" ->
+                        " />"
 
-                        "br" ->
-                            " />"
+                    "col" ->
+                        " />"
 
-                        "col" ->
-                            " />"
+                    "embed" ->
+                        " />"
 
-                        "embed" ->
-                            " />"
+                    "hr" ->
+                        " />"
 
-                        "hr" ->
-                            " />"
+                    "img" ->
+                        " />"
 
-                        "img" ->
-                            " />"
+                    "input" ->
+                        " />"
 
-                        "input" ->
-                            " />"
+                    "link" ->
+                        " />"
 
-                        "link" ->
-                            " />"
+                    "meta" ->
+                        " />"
 
-                        "meta" ->
-                            " />"
+                    "param" ->
+                        " />"
 
-                        "param" ->
-                            " />"
+                    "source" ->
+                        " />"
 
-                        "source" ->
-                            " />"
+                    "track" ->
+                        " />"
 
-                        "track" ->
-                            " />"
+                    "wbr" ->
+                        " />"
 
-                        "wbr" ->
-                            " />"
-
-                        t ->
-                            "></" ++ t ++ ">"
-                 else
-                    ">"
-                )
-        )
+                    t ->
+                        "></" ++ t ++ ">"
+             else
+                ">"
+            )

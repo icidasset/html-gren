@@ -1,0 +1,171 @@
+module Parser.Extra exposing (..)
+
+{-| With code from https://package.elm-lang.org/packages/pithub/elm-parser-extra/1.0.0/
+
+-}
+
+import Parser exposing (..)
+import Parser.Advanced as Advanced
+
+
+
+-- 🌳
+
+
+{-| Result of [`Parser.run`](https://package.elm-lang.org/packages/elm/parser/latest/Parser#run).
+The type alias simplifies the following function signatures a little bit.
+-}
+type alias ParserResult a =
+    Result (Array Parser.DeadEnd) a
+
+
+
+-- 🏔️
+
+
+isLineEnding c =
+    c == '\n' || c == '\r'
+
+
+isSpace c =
+    c == ' '
+
+
+isTab c =
+    c == '\t'
+
+
+
+-- 🛠️
+
+
+char : Parser Char
+char =
+    chompOne
+        |> getChompedString
+        |> map (String.toArray >> Array.first >> Maybe.withDefault ' ')
+
+
+chompIfChar : Char -> Parser {}
+chompIfChar c =
+    chompIf (\a -> a == c)
+
+
+chompOne : Parser {}
+chompOne =
+    chompIf (always True)
+
+
+chompOneOrMore : (Char -> Bool) -> Parser {}
+chompOneOrMore predicate =
+    chompIf predicate |. chompWhile predicate
+
+
+many : Parser a -> Parser (Array a)
+many p =
+    loop [] (manyHelp p)
+
+
+notMoreThanXSpaces : Int -> Parser (Array Char)
+notMoreThanXSpaces n =
+    succeed identity
+        |= many (specificChar ' ')
+        |> andThen
+                (\spaces ->
+                    if Array.length spaces > n then
+                        problem ("Encountered more than " ++ String.fromInt n ++ " spaces")
+                    else
+                        succeed spaces
+                )
+
+
+some :
+    Parser a
+    -> Parser
+        { match : a
+        , rest : Array a
+        }
+some p =
+    succeed
+        (\a b ->
+            { match = a
+            , rest = b
+            }
+        )
+        |= p
+        |= many p
+
+
+specificAmountOf :
+    Int
+    -> Parser a
+    -> Parser
+        { match : a
+        , rest : Array a
+        }
+specificAmountOf amount parser =
+    if amount < 1 then
+        problem "Can\'t parse an amount less than 1"
+    else
+        let
+            helper x p =
+                if x < 1 then
+                    p
+                else
+                    p
+                        |> andThen (\a -> map (\v -> Array.pushLast v a) parser)
+                        |> helper (x - 1)
+        in
+        succeed identity
+            |= parser
+            |> map Array.singleton
+            |> helper (amount - 1)
+            |> map Array.popFirst
+            |> map
+                    (Maybe.map
+                        (\{ first, rest } ->
+                            { match = first
+                            , rest = rest
+                            }
+                        )
+                    )
+            |> andThen
+                    (\maybe ->
+                        case maybe of
+                            Just x ->
+                                succeed x
+
+                            Nothing ->
+                                problem "No matches"
+                    )
+
+
+specificChar : Char -> Parser Char
+specificChar c =
+    map (\_ -> c) (chompIfChar c)
+
+
+
+-- ㊙️
+
+
+manyHelp : Parser a -> Array a -> Parser (Step (Array a) (Array a))
+manyHelp p vs =
+    oneOf
+        [ succeed
+            (\v ->
+                vs
+                    |> Array.pushLast v
+                    |> Loop
+            )
+            |= p
+        , succeed (Done vs)
+        ]
+
+
+problemToDeadEnd : Advanced.DeadEnd Never Parser.Problem -> Parser.DeadEnd
+problemToDeadEnd p =
+    { row = p.row
+    , col = p.col
+    , problem = p.problem
+    }

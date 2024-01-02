@@ -4,16 +4,18 @@
     "name": "icidasset/html-gren",
     "summary": "Transmutable HTML",
     "license": "BSD-3-Clause",
-    "version": "2.0.0",
+    "version": "3.0.0",
     "exposed-modules": [
         "Transmutable.Html",
         "Transmutable.Html.Attributes",
         "Transmutable.Html.Events",
         "Transmutable.Html.Interior",
-        "Transmutable.Html.Keyed"
+        "Transmutable.Html.Keyed",
+        "Transmutable.Html.Parser"
     ],
     "gren-version": "0.3.0 <= v < 0.4.0",
     "dependencies": {
-        "gren-lang/core": "4.0.0 <= v < 5.0.0"
+        "gren-lang/core": "4.0.0 <= v < 5.0.0",
+        "gren-lang/parser": "3.0.1 <= v < 4.0.0"
     }
 }

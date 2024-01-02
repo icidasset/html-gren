@@ -1,4 +1,4 @@
-module Transmutable.Html exposing ( Html, Attribute, text, node, map, toString, toStringWithIndent, h1, h2, h3, h4, h5, h6, div, p, hr, pre, blockquote, span, a, code, em, strong, i, b, u, sub, sup, br, ol, ul, li, dl, dt, dd, img, iframe, canvas, math, form, input, textarea, button, select, option, section, nav, article, aside, header, footer, address, main_, figure, figcaption, table, caption, colgroup, col, tbody, thead, tfoot, tr, td, th, fieldset, legend, label, datalist, optgroup, output, progress, meter, audio, video, source, track, embed, object, param, ins, del, small, cite, dfn, abbr, time, var, samp, kbd, s, q, mark, ruby, rt, rp, bdi, bdo, wbr, details, summary, menuitem, menu, html, head, body, title, meta, link )
+module Transmutable.Html exposing ( Html, Attribute, text, node, map, toString, toStringWithIndent, arrayToString, arrayToStringWithIndent, fromString, h1, h2, h3, h4, h5, h6, div, p, hr, pre, blockquote, span, a, code, em, strong, i, b, u, sub, sup, br, ol, ul, li, dl, dt, dd, img, iframe, canvas, math, form, input, textarea, button, select, option, section, nav, article, aside, header, footer, address, main_, figure, figcaption, table, caption, colgroup, col, tbody, thead, tfoot, tr, td, th, fieldset, legend, label, datalist, optgroup, output, progress, meter, audio, video, source, track, embed, object, param, ins, del, small, cite, dfn, abbr, time, var, samp, kbd, s, q, mark, ruby, rt, rp, bdi, bdo, wbr, details, summary, menuitem, menu, html, head, body, title, meta, link, doctype, cdata, comment, declaration, processingInstruction )
 
 {-| This file is organized roughly in order of popularity. The tags which you'd
 expect to use frequently will be closer to the top.
@@ -7,7 +7,7 @@ expect to use frequently will be closer to the top.
 @docs Html, Attribute, text, node, map
 
 # Transmutions
-@docs toString, toStringWithIndent
+@docs toString, toStringWithIndent, arrayToString, arrayToStringWithIndent, fromString
 
 # Tags
 
@@ -71,10 +71,15 @@ expect to use frequently will be closer to the top.
 ## Head elements
 @docs title, meta, link
 
+
+## Non-elements
+@docs doctype, cdata, comment, declaration, processingInstruction
+
 -}
 
 import Transmutable.Html.Interior as Interior
 import Transmutable.Html.Internal.String
+import Transmutable.Html.Parser as Parser
 
 
 
@@ -175,11 +180,14 @@ map =
 -- TRANSMUTATIONS
 
 
-{-| Encode the HTML as a string.
+{-| Parse HTML from a string.
+-}
+fromString : String -> Array (Html msg)
+fromString =
+    Parser.parse >> Result.withDefault []
 
-The DOCTYPE is inserted automatically when using the `<html>` element.
-No indentation or special line breaks.
 
+{-| Encode HTML as a string.
 -}
 toString : Html msg -> String
 toString =
@@ -188,16 +196,27 @@ toString =
         }
 
 
-{-| Encode the HTML as a string.
+{-| Encode a HTML array as a string.
+-}
+arrayToString : Array (Html msg) -> String
+arrayToString =
+    Array.map toString >> String.join ""
 
-The DOCTYPE is inserted automatically when using the `<html>` element.
 
+{-| Encode HTML as a string with indentation.
 -}
 toStringWithIndent : Int -> Html msg -> String
 toStringWithIndent indent =
     Transmutable.Html.Internal.String.toString
         { indent = indent
         }
+
+
+{-| Encode a HTML array as a string.
+-}
+arrayToStringWithIndent : Int -> Array (Html msg) -> String
+arrayToStringWithIndent indent =
+    Array.map (toStringWithIndent indent) >> String.join ""
 
 
 
@@ -935,3 +954,38 @@ meta attributes =
 link : Array (Attribute msg) -> Html msg
 link attributes =
     node "link" attributes []
+
+
+
+-- NON-ELEMENTS
+
+
+{-|-}
+cdata : String -> Html msg
+cdata =
+    Interior.Cdata
+
+
+{-|-}
+comment : String -> Html msg
+comment =
+    Interior.Comment
+
+
+{-|-}
+declaration : String -> Html msg
+declaration =
+    Interior.Declaration
+
+
+{-| HTML5 doctype.
+-}
+doctype : Html msg
+doctype =
+    declaration "DOCTYPE html"
+
+
+{-|-}
+processingInstruction : String -> Html msg
+processingInstruction =
+    Interior.ProcessingInstruction

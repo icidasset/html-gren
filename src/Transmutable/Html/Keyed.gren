@@ -31,19 +31,19 @@ node :
     -> Array (Attribute msg)
     -> Array
         { key : String
-        , node : Html msg
+        , html : Html msg
         }
     -> Html msg
 node tagName attrs descendants =
     descendants
         |> Array.map
                 (\item ->
-                    case item.node of
+                    case item.html of
                         Node props itemAttrs itemDescendants ->
                             Node { props | key = Just item.key } itemAttrs itemDescendants
 
-                        TextNode t ->
-                            TextNode t
+                        h ->
+                            h
                 )
         |> Interior.Regular
         |> Interior.Node
@@ -58,7 +58,7 @@ ol :
     Array (Attribute msg)
     -> Array
         { key : String
-        , node : Html msg
+        , html : Html msg
         }
     -> Html msg
 ol =
@@ -70,7 +70,7 @@ ul :
     Array (Attribute msg)
     -> Array
         { key : String
-        , node : Html msg
+        , html : Html msg
         }
     -> Html msg
 ul =

@@ -1,0 +1,325 @@
+module Transmutable.Html.Parser exposing ( parse, parser )
+
+{-|
+
+# HTML Parsing
+
+@docs parse, parser
+
+-}
+
+import Parser exposing (..)
+import Parser.Extra exposing (..)
+import Transmutable.Html.Interior exposing ( Html(..), NodeProperties, Attribute(..), Descendants(..) )
+
+
+
+-- 🛠️
+
+
+{-| Parse HTML.
+-}
+parse : String -> Result (Array DeadEnd) (Array (Html msg))
+parse =
+    Parser.run parser
+
+
+
+-- PARSER
+
+
+{-| HTML parser.
+-}
+parser : Parser (Array (Html msg))
+parser =
+    loop [] parserLoop
+
+
+parserLoop : Array (Html msg) -> Parser (Step (Array (Html msg)) (Array (Html msg)))
+parserLoop html =
+    let
+        part =
+            map
+                (\el ->
+                    [ el
+                    ]
+                        |> (\a -> html ++ a)
+                        |> Loop
+                )
+    in
+    oneOf
+        [ -- Check if we reached the end
+          map (\_ -> Done html) end
+
+        , -- 
+          part (backtrackable nodeParser)
+        , part (backtrackable commentParser)
+        , part (backtrackable processingInstructionParser)
+        , part (backtrackable cdataParser)
+        , part (backtrackable declarationParser)
+            -- 
+        , textLoopParser html
+        ]
+
+
+
+-- 
+
+
+cdataParser =
+    succeed Cdata
+        |. symbol "<![CDATA["
+        |= getChompedString (chompUntil "]]>")
+        |. symbol "]]>"
+        |> identity
+
+
+closingTagParser =
+    succeed
+        (\tagName ->
+            { tagName = tagName
+            }
+        )
+        |. symbol "</"
+        |= tagNameParser
+        |. tagSpaceParser
+        |. symbol ">"
+
+
+commentParser =
+    succeed identity
+        |. symbol "<!--"
+        |= getChompedString (chompUntil "-->")
+        |. symbol "-->"
+        |> andThen
+                (\comment ->
+                    if String.startsWith ">" comment then
+                        problem "Text cannot start with \'>\'"
+                    else if String.startsWith "->" comment then
+                        problem "Text cannot start with \'->\'"
+                    else if String.contains "--" comment then
+                        problem "Text cannot contain \'--\'"
+                    else if String.endsWith "-" comment then
+                        problem "Text cannot end with \'-\'"
+                    else
+                        succeed (Comment comment)
+                )
+
+
+declarationParser =
+    succeed (\a b -> Declaration (a ++ b))
+        |. symbol "<!"
+        |= getChompedString (chompIf Char.isAlpha)
+        |= getChompedString (chompUntil ">")
+        |. symbol ">"
+        |> identity
+
+
+nodeParser =
+    [ succeed identity
+        |= openingTagParser
+                { closed = False
+                }
+        |> andThen
+                (\opening ->
+                    let
+                        chompUntilClosing contentsAcc =
+                            succeed
+                                (\a b ->
+                                    { closing = b
+                                    , contents = a
+                                    }
+                                )
+                                |= getChompedString (chompUntil "</")
+                                |= closingTagParser
+                                |> andThen
+                                        (\{ closing, contents } ->
+                                            if closing.tagName == opening.tagName then
+                                                succeed
+                                                    { opening = opening
+                                                    , contents = Just (contentsAcc ++ contents)
+                                                    , closing = Just closing
+                                                    }
+                                            else
+                                                chompUntilClosing (contentsAcc ++ contents ++ "</" ++ closing.tagName ++ ">")
+                                        )
+                    in
+                    chompUntilClosing ""
+                )
+        |> backtrackable
+
+    , -- 
+      succeed
+        (\a ->
+            { opening = a
+            , contents = Nothing
+            , closing = Nothing
+            }
+        )
+        |= openingTagParser
+                { closed = True
+                }
+    ]
+        |> oneOf
+        |> andThen
+                (\{ opening, closing, contents } ->
+                    (case contents of
+                        Just c ->
+                            c
+                                |> parse
+                                |> Result.withDefault
+                                        [ TextNode c
+                                        ]
+
+                        Nothing ->
+                            []
+                    )
+                        |> Regular
+                        |> Node
+                                { key = Nothing
+                                , tagName = opening.tagName
+                                }
+                                opening.attributes
+                        |> succeed
+                )
+
+
+openingTagParser { closed } =
+    succeed
+        (\tagName attributes ->
+            { tagName = tagName
+            , attributes = attributes
+            }
+        )
+        |. symbol "<"
+        |= tagNameParser
+        |= many (backtrackable attributeParser)
+        |. tagSpaceParser
+        |. (if closed then
+                symbol "/>"
+             else
+                symbol ">"
+            )
+
+
+processingInstructionParser =
+    succeed ProcessingInstruction
+        |. symbol "<?"
+        |= getChompedString (chompUntil "?>")
+        |. symbol "?>"
+        |> identity
+
+
+tagSpaceParser =
+    succeed identity
+        |= getChompedString (chompWhile (\c -> isSpace c || isTab c || isLineEnding c))
+        |> andThen
+                (\string ->
+                    let
+                        chars =
+                            String.toArray string
+
+                        lineEndings =
+                            Array.filter (\c -> c == '\n' || c == '\r') chars
+                    in
+                    if Array.length lineEndings > 1 then
+                        problem "Cannot contain multiple line endings"
+                    else
+                        succeed string
+                )
+
+
+tagNameParser =
+    succeed identity
+        |. chompIf Char.isAlpha
+        |. many
+                (oneOf
+                    [ chompIf Char.isAlphaNum
+                    , chompIf (\c -> c == '-')
+                    ]
+                )
+        |> getChompedString
+
+
+
+-- ATTRIBUTES
+
+
+attributeParser =
+    oneOf
+        [ succeed Attribute
+            |. tagSpaceParser
+            |= attributeNameParser
+            |= attributeValueSpecificationParser
+            |> backtrackable
+        , succeed (\k -> Attribute k "")
+            |. tagSpaceParser
+            |= attributeNameParser
+            |> identity
+        ]
+
+
+attributeNameParser =
+    succeed identity
+        |. chompIf (\c -> Char.isAlpha c || c == '_' || c == ':')
+        |. many (chompIf (\c -> Char.isAlphaNum c || c == '_' || c == '.' || c == ':' || c == '-'))
+        |> getChompedString
+
+
+attributeValueSpecificationParser =
+    succeed identity
+        |. tagSpaceParser
+        |. specificChar '='
+        |. tagSpaceParser
+        |= attributeValueParser
+        |> identity
+
+
+attributeValueParser =
+    oneOf
+        [ backtrackable quotedAttributeValueParser
+        , unquotedAttributeValueParser
+        ]
+
+
+unquotedAttributeValueParser =
+    getChompedString (chompOneOrMore (\c -> isSpace c == False && isLineEnding c == False && isTab c == False && c /= '\"' && c /= '\'' && c /= '=' && c /= '<' && c /= '>' && c /= '`'))
+
+
+quotedAttributeValueParser =
+    andThen
+        (\char ->
+            succeed identity
+                |= getChompedString (chompUntilEndOr (String.fromChar char))
+                |. specificChar char
+                |> identity
+        )
+        (oneOf
+            [ specificChar '\"'
+            , specificChar '\''
+            ]
+        )
+
+
+
+-- TEXT
+
+
+textLoopParser : Array (Html msg) -> Parser (Step (Array (Html msg)) (Array (Html msg)))
+textLoopParser html =
+    succeed (textLoop html) |= getChompedString chompOne
+
+
+textLoop : Array (Html msg) -> String -> Step (Array (Html msg)) (Array (Html msg))
+textLoop html text =
+    case text of
+        "" ->
+            Done html
+
+        _ ->
+            case Array.last html of
+                Just (TextNode previousText) ->
+                    Loop (Array.pushLast (TextNode (previousText ++ text)) (Array.dropLast 1 html))
+
+                _ ->
+                    Loop (Array.pushLast (TextNode text) html)
