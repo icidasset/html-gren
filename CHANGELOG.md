@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.1.1
+
+Fixed typo in documentation.
+
 ## 3.1.0
 
 Expose the individual parsers too.
