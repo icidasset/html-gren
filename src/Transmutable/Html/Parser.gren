@@ -1,10 +1,18 @@
-module Transmutable.Html.Parser exposing ( parse, parser )
+module Transmutable.Html.Parser exposing ( parse, parser, cdataParser, closingTagParser, commentParser, declarationParser, nodeParser, openingTagParser, processingInstructionParser, tagSpaceParser, tagNameParser, attributeParser, attributeNameParser, attributeValueSpecificationParser, attributeValueParser, unquotedAttributeValueParser, quotedAttributeValueParser, textParser )
 
 {-|
 
-# HTML Parsing
+#
 
 @docs parse, parser
+
+## Individual parsers
+
+@docs cdataParser, closingTagParser, commentParser, declarationParser, nodeParser, openingTagParser, processingInstructionParser, tagSpaceParser, tagNameParser, textParser
+
+### Attributes
+
+@docs attributeParser, attributeNameParser, attributeValueSpecificationParser, attributeValueParser, unquotedAttributeValueParser, quotedAttributeValueParser
 
 -}
 
@@ -51,21 +59,24 @@ parserLoop html =
         [ -- Check if we reached the end
           map (\_ -> Done html) end
 
-        , -- 
+        , --
           part (backtrackable nodeParser)
         , part (backtrackable commentParser)
         , part (backtrackable processingInstructionParser)
         , part (backtrackable cdataParser)
         , part (backtrackable declarationParser)
-            -- 
-        , textLoopParser html
+
+        , --
+          textParser html
         ]
 
 
 
--- 
+-- PARTS
 
 
+{-|-}
+cdataParser : Parser (Html msg)
 cdataParser =
     succeed Cdata
         |. symbol "<![CDATA["
@@ -74,6 +85,11 @@ cdataParser =
         |> identity
 
 
+{-|-}
+closingTagParser :
+    Parser
+        { tagName : String
+        }
 closingTagParser =
     succeed
         (\tagName ->
@@ -86,6 +102,8 @@ closingTagParser =
         |. symbol ">"
 
 
+{-|-}
+commentParser : Parser (Html msg)
 commentParser =
     succeed identity
         |. symbol "<!--"
@@ -106,6 +124,8 @@ commentParser =
                 )
 
 
+{-|-}
+declarationParser : Parser (Html msg)
 declarationParser =
     succeed (\a b -> Declaration (a ++ b))
         |. symbol "<!"
@@ -115,10 +135,12 @@ declarationParser =
         |> identity
 
 
+{-|-}
+nodeParser : Parser (Html msg)
 nodeParser =
     [ succeed identity
         |= openingTagParser
-                { closed = False
+                { closedItself = False
                 }
         |> andThen
                 (\opening ->
@@ -148,7 +170,7 @@ nodeParser =
                 )
         |> backtrackable
 
-    , -- 
+    , --
       succeed
         (\a ->
             { opening = a
@@ -157,7 +179,7 @@ nodeParser =
             }
         )
         |= openingTagParser
-                { closed = True
+                { closedItself = True
                 }
     ]
         |> oneOf
@@ -184,7 +206,15 @@ nodeParser =
                 )
 
 
-openingTagParser { closed } =
+{-|-}
+openingTagParser :
+    { closedItself : Bool
+    }
+    -> Parser
+        { tagName : String
+        , attributes : Array (Attribute msg)
+        }
+openingTagParser { closedItself } =
     succeed
         (\tagName attributes ->
             { tagName = tagName
@@ -195,13 +225,15 @@ openingTagParser { closed } =
         |= tagNameParser
         |= many (backtrackable attributeParser)
         |. tagSpaceParser
-        |. (if closed then
+        |. (if closedItself then
                 symbol "/>"
              else
                 symbol ">"
             )
 
 
+{-|-}
+processingInstructionParser : Parser (Html msg)
 processingInstructionParser =
     succeed ProcessingInstruction
         |. symbol "<?"
@@ -210,6 +242,8 @@ processingInstructionParser =
         |> identity
 
 
+{-|-}
+tagSpaceParser : Parser String
 tagSpaceParser =
     succeed identity
         |= getChompedString (chompWhile (\c -> isSpace c || isTab c || isLineEnding c))
@@ -229,6 +263,8 @@ tagSpaceParser =
                 )
 
 
+{-|-}
+tagNameParser : Parser String
 tagNameParser =
     succeed identity
         |. chompIf Char.isAlpha
@@ -245,6 +281,8 @@ tagNameParser =
 -- ATTRIBUTES
 
 
+{-|-}
+attributeParser : Parser (Attribute msg)
 attributeParser =
     oneOf
         [ succeed Attribute
@@ -259,6 +297,8 @@ attributeParser =
         ]
 
 
+{-|-}
+attributeNameParser : Parser String
 attributeNameParser =
     succeed identity
         |. chompIf (\c -> Char.isAlpha c || c == '_' || c == ':')
@@ -266,6 +306,8 @@ attributeNameParser =
         |> getChompedString
 
 
+{-|-}
+attributeValueSpecificationParser : Parser String
 attributeValueSpecificationParser =
     succeed identity
         |. tagSpaceParser
@@ -275,6 +317,8 @@ attributeValueSpecificationParser =
         |> identity
 
 
+{-|-}
+attributeValueParser : Parser String
 attributeValueParser =
     oneOf
         [ backtrackable quotedAttributeValueParser
@@ -282,10 +326,14 @@ attributeValueParser =
         ]
 
 
+{-|-}
+unquotedAttributeValueParser : Parser String
 unquotedAttributeValueParser =
     getChompedString (chompOneOrMore (\c -> isSpace c == False && isLineEnding c == False && isTab c == False && c /= '\"' && c /= '\'' && c /= '=' && c /= '<' && c /= '>' && c /= '`'))
 
 
+{-|-}
+quotedAttributeValueParser : Parser String
 quotedAttributeValueParser =
     andThen
         (\char ->
@@ -305,8 +353,9 @@ quotedAttributeValueParser =
 -- TEXT
 
 
-textLoopParser : Array (Html msg) -> Parser (Step (Array (Html msg)) (Array (Html msg)))
-textLoopParser html =
+{-|-}
+textParser : Array (Html msg) -> Parser (Step (Array (Html msg)) (Array (Html msg)))
+textParser html =
     succeed (textLoop html) |= getChompedString chompOne
 
 

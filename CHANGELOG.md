@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.1.0
+
+Expose the individual parsers too.
+
 ## 3.0.0
 
 - Added the ability to parse HTML

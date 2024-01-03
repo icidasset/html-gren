@@ -39,6 +39,8 @@ import Transmutable.Html as Html
 Html.fromString "<html><body><!-- Contents --></body></html>"
 ```
 
+Parsers for the individual pieces are available too via the `Transmutable.Html.Parser` module.
+
 
 ## Demo
 
