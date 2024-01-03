@@ -6,7 +6,7 @@ expect to use frequently will be closer to the top.
 # Primitives
 @docs Html, Attribute, text, node, map
 
-# Transmutions
+# Transmutations
 @docs toString, toStringWithIndent, arrayToString, arrayToStringWithIndent, fromString
 
 # Tags
