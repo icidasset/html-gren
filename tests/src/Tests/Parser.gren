@@ -285,6 +285,19 @@ nesting =
                 []
                 (Regular [])
             ]
+            -- 
+        , testHtml
+            "<script><span>Does not need to be parsed</span></script>"
+            [ Node
+                { key = Nothing
+                , tagName = "script"
+                }
+                []
+                (Regular
+                    [ TextNode "<span>Does not need to be parsed</span>"
+                    ]
+                )
+            ]
         ]
 
 

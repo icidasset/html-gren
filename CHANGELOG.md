@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.1.2
+
+Don't attempt to parse contents of certain elements, such as `script` and `pre`.
+
 ## 3.1.1
 
 Fixed typo in documentation.

@@ -59,14 +59,14 @@ parserLoop html =
         [ -- Check if we reached the end
           map (\_ -> Done html) end
 
-        , --
+        , -- 
           part (backtrackable nodeParser)
         , part (backtrackable commentParser)
         , part (backtrackable processingInstructionParser)
         , part (backtrackable cdataParser)
         , part (backtrackable declarationParser)
 
-        , --
+        , -- 
           textParser html
         ]
 
@@ -170,7 +170,7 @@ nodeParser =
                 )
         |> backtrackable
 
-    , --
+    , -- 
       succeed
         (\a ->
             { opening = a
@@ -187,11 +187,24 @@ nodeParser =
                 (\{ opening, closing, contents } ->
                     (case contents of
                         Just c ->
-                            c
-                                |> parse
-                                |> Result.withDefault
-                                        [ TextNode c
-                                        ]
+                            -- Some contents of elements does not need to be parsed
+                            if
+                                Array.member
+                                    opening.tagName
+                                    [ "pre"
+                                    , "script"
+                                    , "style"
+                                    , "textarea"
+                                    ]
+                            then
+                                [ TextNode c
+                                ]
+                            else
+                                c
+                                    |> parse
+                                    |> Result.withDefault
+                                            [ TextNode c
+                                            ]
 
                         Nothing ->
                             []
