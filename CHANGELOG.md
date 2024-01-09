@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.0.0
+
+Various parser improvements.
+
 ## 3.1.2
 
 Don't attempt to parse contents of certain elements, such as `script` and `pre`.

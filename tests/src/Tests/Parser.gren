@@ -285,8 +285,9 @@ nesting =
                 []
                 (Regular [])
             ]
-            -- 
-        , testHtml
+
+        , -- 
+          testHtml
             "<script><span>Does not need to be parsed</span></script>"
             [ Node
                 { key = Nothing
@@ -295,6 +296,82 @@ nesting =
                 []
                 (Regular
                     [ TextNode "<span>Does not need to be parsed</span>"
+                    ]
+                )
+            ]
+
+        , -- Nesting of elements with the same name
+          testHtml
+            "<div><div><div><span>A</span></div></div></div>"
+            [ Node
+                { key = Nothing
+                , tagName = "div"
+                }
+                []
+                (Regular
+                    [ Node
+                        { key = Nothing
+                        , tagName = "div"
+                        }
+                        []
+                        (Regular
+                            [ Node
+                                { key = Nothing
+                                , tagName = "div"
+                                }
+                                []
+                                (Regular
+                                    [ Node
+                                        { key = Nothing
+                                        , tagName = "span"
+                                        }
+                                        []
+                                        (Regular
+                                            [ TextNode "A"
+                                            ]
+                                        )
+                                    ]
+                                )
+                            ]
+                        )
+                    ]
+                )
+            ]
+
+        , -- 
+          testHtml
+            "<b><b><bold><BOLD>text</bold></BOLD></b></b>"
+            [ Node
+                { key = Nothing
+                , tagName = "b"
+                }
+                []
+                (Regular
+                    [ Node
+                        { key = Nothing
+                        , tagName = "b"
+                        }
+                        []
+                        (Regular
+                            [ Node
+                                { key = Nothing
+                                , tagName = "bold"
+                                }
+                                []
+                                (Regular
+                                    [ Node
+                                        { key = Nothing
+                                        , tagName = "BOLD"
+                                        }
+                                        []
+                                        (Regular
+                                            [ TextNode "text"
+                                            ]
+                                        )
+                                    ]
+                                )
+                            ]
+                        )
                     ]
                 )
             ]
