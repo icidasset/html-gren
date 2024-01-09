@@ -4,7 +4,7 @@
     "name": "icidasset/html-gren",
     "summary": "Transmutable HTML",
     "license": "BSD-3-Clause",
-    "version": "3.1.2",
+    "version": "4.0.0",
     "exposed-modules": [
         "Transmutable.Html",
         "Transmutable.Html.Attributes",

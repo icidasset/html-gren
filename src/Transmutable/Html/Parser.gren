@@ -1,4 +1,4 @@
-module Transmutable.Html.Parser exposing ( parse, parser, cdataParser, closingTagParser, commentParser, declarationParser, nodeParser, openingTagParser, processingInstructionParser, tagSpaceParser, tagNameParser, attributeParser, attributeNameParser, attributeValueSpecificationParser, attributeValueParser, unquotedAttributeValueParser, quotedAttributeValueParser, textParser )
+module Transmutable.Html.Parser exposing ( parse, parser, cdataParser, closingTagParser, commentParser, declarationParser, nonRecursiveNodeParser, openingTagParser, processingInstructionParser, tagSpaceParser, tagNameParser, attributeParser, attributeNameParser, attributeValueSpecificationParser, attributeValueParser, unquotedAttributeValueParser, quotedAttributeValueParser, textParser )
 
 {-|
 
@@ -8,7 +8,7 @@ module Transmutable.Html.Parser exposing ( parse, parser, cdataParser, closingTa
 
 ## Individual parsers
 
-@docs cdataParser, closingTagParser, commentParser, declarationParser, nodeParser, openingTagParser, processingInstructionParser, tagSpaceParser, tagNameParser, textParser
+@docs cdataParser, closingTagParser, commentParser, declarationParser, nonRecursiveNodeParser, openingTagParser, processingInstructionParser, tagSpaceParser, tagNameParser, textParser
 
 ### Attributes
 
@@ -19,6 +19,25 @@ module Transmutable.Html.Parser exposing ( parse, parser, cdataParser, closingTa
 import Parser exposing (..)
 import Parser.Extra exposing (..)
 import Transmutable.Html.Interior exposing ( Html(..), NodeProperties, Attribute(..), Descendants(..) )
+
+
+
+-- 🌳
+
+
+{-|-}
+type RawHtml msg
+    = OpeningTag
+        { tagName : String
+        , attributes : Array (Attribute msg)
+        , closed : Bool
+        , origin : String
+        }
+    | ClosingTag
+        { tagName : String
+        , origin : String
+        }
+    | Html (Html msg)
 
 
 
@@ -40,10 +59,115 @@ parse =
 -}
 parser : Parser (Array (Html msg))
 parser =
+    map
+        (\rawHtml ->
+            { acc = []
+            , remainder = rawHtml
+            }
+                |> process
+                |> .acc
+        )
+        parserRaw
+
+
+process :
+    { acc : Array (Html msg)
+    , remainder : Array (RawHtml msg)
+    }
+    -> { acc : Array (Html msg)
+       , remainder : Array (RawHtml msg)
+       , closed : Bool
+       , end : Bool
+       }
+process { acc, remainder } =
+    case Array.popFirst remainder of
+        Just { first, rest } ->
+            case first of
+                Html h ->
+                    process
+                        { acc = addHtmlToList h acc
+                        , remainder = rest
+                        }
+
+                OpeningTag opening ->
+                    let
+                        openLoop args =
+                            let
+                                nested =
+                                    process
+                                        { acc = args.acc
+                                        , remainder = args.remainder
+                                        }
+                            in
+                            if nested.closed then
+                                Just
+                                    { acc = nested.acc
+                                    , remainder = nested.remainder
+                                    }
+                            else if nested.end then
+                                Nothing
+                            else
+                                openLoop
+                                    { acc = nested.acc
+                                    , remainder = nested.remainder
+                                    }
+
+                        maybe =
+                            if opening.closed then
+                                Just
+                                    { acc = []
+                                    , remainder = rest
+                                    }
+                            else
+                                openLoop
+                                    { acc = []
+                                    , remainder = rest
+                                    }
+                    in
+                    case maybe of
+                        Just result ->
+                            result.acc
+                                |> Regular
+                                |> Node
+                                        { key = Nothing
+                                        , tagName = opening.tagName
+                                        }
+                                        opening.attributes
+                                |> (\h ->
+                                        { acc = addHtmlToList h acc
+                                        , remainder = result.remainder
+                                        }
+                                    )
+                                |> process
+
+                        Nothing ->
+                            process
+                                { acc = addHtmlToList (TextNode opening.origin) acc
+                                , remainder = rest
+                                }
+
+                ClosingTag _ ->
+                    { acc = acc
+                    , remainder = rest
+                    , closed = True
+                    , end = False
+                    }
+
+        Nothing ->
+            { acc = acc
+            , remainder = []
+            , closed = False
+            , end = True
+            }
+
+
+{-|-}
+parserRaw : Parser (Array (RawHtml msg))
+parserRaw =
     loop [] parserLoop
 
 
-parserLoop : Array (Html msg) -> Parser (Step (Array (Html msg)) (Array (Html msg)))
+parserLoop : Array (RawHtml msg) -> Parser (Step (Array (RawHtml msg)) (Array (RawHtml msg)))
 parserLoop html =
     let
         part =
@@ -60,11 +184,36 @@ parserLoop html =
           map (\_ -> Done html) end
 
         , -- 
-          part (backtrackable nodeParser)
-        , part (backtrackable commentParser)
-        , part (backtrackable processingInstructionParser)
-        , part (backtrackable cdataParser)
-        , part (backtrackable declarationParser)
+          part (map Html (backtrackable nonRecursiveNodeParser))
+
+        , -- 
+          part
+            (map
+                OpeningTag
+                (backtrackable
+                    (openingTagParser
+                        { closed = False
+                        }
+                    )
+                )
+            )
+        , part
+            (map
+                OpeningTag
+                (backtrackable
+                    (openingTagParser
+                        { closed = True
+                        }
+                    )
+                )
+            )
+        , part (map ClosingTag (backtrackable closingTagParser))
+
+        , -- 
+          part (map Html (backtrackable commentParser))
+        , part (map Html (backtrackable processingInstructionParser))
+        , part (map Html (backtrackable cdataParser))
+        , part (map Html (backtrackable declarationParser))
 
         , -- 
           textParser html
@@ -89,17 +238,22 @@ cdataParser =
 closingTagParser :
     Parser
         { tagName : String
+        , origin : String
         }
 closingTagParser =
     succeed
-        (\tagName ->
+        (\start tagName end source ->
             { tagName = tagName
+            , origin = String.slice start end source
             }
         )
+        |= Parser.getOffset
         |. symbol "</"
         |= tagNameParser
         |. tagSpaceParser
         |. symbol ">"
+        |= Parser.getOffset
+        |= Parser.getSource
 
 
 {-|-}
@@ -136,12 +290,28 @@ declarationParser =
 
 
 {-|-}
-nodeParser : Parser (Html msg)
-nodeParser =
-    [ succeed identity
-        |= openingTagParser
-                { closedItself = False
-                }
+nonRecursiveNodeParser : Parser (Html msg)
+nonRecursiveNodeParser =
+    succeed identity
+        |= andThen
+                (\opening ->
+                    if
+                        Array.member
+                            opening.tagName
+                            [ "pre"
+                            , "script"
+                            , "style"
+                            , "textarea"
+                            ]
+                    then
+                        succeed opening
+                    else
+                        problem "Found a recursive node instead"
+                )
+                (openingTagParser
+                    { closed = False
+                    }
+                )
         |> andThen
                 (\opening ->
                     let
@@ -156,7 +326,7 @@ nodeParser =
                                 |= closingTagParser
                                 |> andThen
                                         (\{ closing, contents } ->
-                                            if closing.tagName == opening.tagName then
+                                            if String.toLower closing.tagName == String.toLower opening.tagName then
                                                 succeed
                                                     { opening = opening
                                                     , contents = Just (contentsAcc ++ contents)
@@ -168,43 +338,12 @@ nodeParser =
                     in
                     chompUntilClosing ""
                 )
-        |> backtrackable
-
-    , -- 
-      succeed
-        (\a ->
-            { opening = a
-            , contents = Nothing
-            , closing = Nothing
-            }
-        )
-        |= openingTagParser
-                { closedItself = True
-                }
-    ]
-        |> oneOf
         |> andThen
                 (\{ opening, closing, contents } ->
                     (case contents of
                         Just c ->
-                            -- Some contents of elements does not need to be parsed
-                            if
-                                Array.member
-                                    opening.tagName
-                                    [ "pre"
-                                    , "script"
-                                    , "style"
-                                    , "textarea"
-                                    ]
-                            then
-                                [ TextNode c
-                                ]
-                            else
-                                c
-                                    |> parse
-                                    |> Result.withDefault
-                                            [ TextNode c
-                                            ]
+                            [ TextNode c
+                            ]
 
                         Nothing ->
                             []
@@ -221,28 +360,35 @@ nodeParser =
 
 {-|-}
 openingTagParser :
-    { closedItself : Bool
+    { closed : Bool
     }
     -> Parser
         { tagName : String
         , attributes : Array (Attribute msg)
+        , closed : Bool
+        , origin : String
         }
-openingTagParser { closedItself } =
+openingTagParser { closed } =
     succeed
-        (\tagName attributes ->
+        (\start tagName attributes end source ->
             { tagName = tagName
             , attributes = attributes
+            , closed = closed
+            , origin = String.slice start end source
             }
         )
+        |= Parser.getOffset
         |. symbol "<"
         |= tagNameParser
         |= many (backtrackable attributeParser)
         |. tagSpaceParser
-        |. (if closedItself then
+        |. (if closed then
                 symbol "/>"
              else
                 symbol ">"
             )
+        |= Parser.getOffset
+        |= Parser.getSource
 
 
 {-|-}
@@ -367,12 +513,12 @@ quotedAttributeValueParser =
 
 
 {-|-}
-textParser : Array (Html msg) -> Parser (Step (Array (Html msg)) (Array (Html msg)))
+textParser : Array (RawHtml msg) -> Parser (Step (Array (RawHtml msg)) (Array (RawHtml msg)))
 textParser html =
     succeed (textLoop html) |= getChompedString chompOne
 
 
-textLoop : Array (Html msg) -> String -> Step (Array (Html msg)) (Array (Html msg))
+textLoop : Array (RawHtml msg) -> String -> Step (Array (RawHtml msg)) (Array (RawHtml msg))
 textLoop html text =
     case text of
         "" ->
@@ -380,8 +526,31 @@ textLoop html text =
 
         _ ->
             case Array.last html of
-                Just (TextNode previousText) ->
-                    Loop (Array.pushLast (TextNode (previousText ++ text)) (Array.dropLast 1 html))
+                Just (Html (TextNode previousText)) ->
+                    Loop (Array.pushLast (Html (TextNode (previousText ++ text))) (Array.dropLast 1 html))
 
                 _ ->
-                    Loop (Array.pushLast (TextNode text) html)
+                    Loop (Array.pushLast (Html (TextNode text)) html)
+
+
+
+-- ㊙️
+
+
+addHtmlToList : Html msg -> Array (Html msg) -> Array (Html msg)
+addHtmlToList html array =
+    case Array.popLast array of
+        Just { last = TextNode t1, initial } ->
+            case html of
+                TextNode t2 ->
+                    Array.pushLast (TextNode (t1 ++ t2)) initial
+
+                _ ->
+                    Array.pushLast html array
+
+        Just _ ->
+            Array.pushLast html array
+
+        Nothing ->
+            [ html
+            ]
