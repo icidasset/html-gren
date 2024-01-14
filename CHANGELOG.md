@@ -1,8 +1,13 @@
 # Changelog
 
+## 4.1.0
+
+Expose raw parser.
+
 ## 4.0.0
 
 Various parser improvements.
+
 
 ## 3.1.2
 

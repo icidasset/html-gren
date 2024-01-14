@@ -1,10 +1,10 @@
-module Transmutable.Html.Parser exposing ( parse, parser, cdataParser, closingTagParser, commentParser, declarationParser, nonRecursiveNodeParser, openingTagParser, processingInstructionParser, tagSpaceParser, tagNameParser, attributeParser, attributeNameParser, attributeValueSpecificationParser, attributeValueParser, unquotedAttributeValueParser, quotedAttributeValueParser, textParser )
+module Transmutable.Html.Parser exposing ( parse, parser, parserRaw, rawToHtml, cdataParser, closingTagParser, commentParser, declarationParser, nonRecursiveNodeParser, openingTagParser, processingInstructionParser, tagSpaceParser, tagNameParser, attributeParser, attributeNameParser, attributeValueSpecificationParser, attributeValueParser, unquotedAttributeValueParser, quotedAttributeValueParser, textParser )
 
 {-|
 
 #
 
-@docs parse, parser
+@docs parse, parser, parserRaw, rawToHtml
 
 ## Individual parsers
 
@@ -59,18 +59,21 @@ parse =
 -}
 parser : Parser (Array (Html msg))
 parser =
-    map
-        (\rawHtml ->
-            { acc = []
-            , remainder = rawHtml
-            }
-                |> process
-                |> .acc
-        )
-        parserRaw
+    map rawToHtml parserRaw
 
 
-process :
+{-| Transform the `RawHtml` into `Html`
+-}
+rawToHtml : Array (RawHtml msg) -> Array (Html msg)
+rawToHtml rawHtml =
+    { acc = []
+    , remainder = rawHtml
+    }
+        |> translateRaw
+        |> .acc
+
+
+translateRaw :
     { acc : Array (Html msg)
     , remainder : Array (RawHtml msg)
     }
@@ -79,79 +82,10 @@ process :
        , closed : Bool
        , end : Bool
        }
-process { acc, remainder } =
+translateRaw { acc, remainder } =
     case Array.popFirst remainder of
         Just { first, rest } ->
-            case first of
-                Html h ->
-                    process
-                        { acc = addHtmlToList h acc
-                        , remainder = rest
-                        }
-
-                OpeningTag opening ->
-                    let
-                        openLoop args =
-                            let
-                                nested =
-                                    process
-                                        { acc = args.acc
-                                        , remainder = args.remainder
-                                        }
-                            in
-                            if nested.closed then
-                                Just
-                                    { acc = nested.acc
-                                    , remainder = nested.remainder
-                                    }
-                            else if nested.end then
-                                Nothing
-                            else
-                                openLoop
-                                    { acc = nested.acc
-                                    , remainder = nested.remainder
-                                    }
-
-                        maybe =
-                            if opening.closed then
-                                Just
-                                    { acc = []
-                                    , remainder = rest
-                                    }
-                            else
-                                openLoop
-                                    { acc = []
-                                    , remainder = rest
-                                    }
-                    in
-                    case maybe of
-                        Just result ->
-                            result.acc
-                                |> Regular
-                                |> Node
-                                        { key = Nothing
-                                        , tagName = opening.tagName
-                                        }
-                                        opening.attributes
-                                |> (\h ->
-                                        { acc = addHtmlToList h acc
-                                        , remainder = result.remainder
-                                        }
-                                    )
-                                |> process
-
-                        Nothing ->
-                            process
-                                { acc = addHtmlToList (TextNode opening.origin) acc
-                                , remainder = rest
-                                }
-
-                ClosingTag _ ->
-                    { acc = acc
-                    , remainder = rest
-                    , closed = True
-                    , end = False
-                    }
+            translateRawElement acc first rest
 
         Nothing ->
             { acc = acc
@@ -161,7 +95,90 @@ process { acc, remainder } =
             }
 
 
-{-|-}
+translateRawElement :
+    Array (Html msg)
+    -> RawHtml msg
+    -> Array (RawHtml msg)
+    -> { acc : Array (Html msg)
+       , remainder : Array (RawHtml msg)
+       , closed : Bool
+       , end : Bool
+       }
+translateRawElement acc first rest =
+    case first of
+        Html h ->
+            translateRaw
+                { acc = addHtmlToList h acc
+                , remainder = rest
+                }
+
+        OpeningTag opening ->
+            let
+                openLoop args =
+                    let
+                        nested =
+                            translateRaw
+                                { acc = args.acc
+                                , remainder = args.remainder
+                                }
+                    in
+                    if nested.closed then
+                        Just
+                            { acc = nested.acc
+                            , remainder = nested.remainder
+                            }
+                    else if nested.end then
+                        Nothing
+                    else
+                        openLoop
+                            { acc = nested.acc
+                            , remainder = nested.remainder
+                            }
+
+                maybe =
+                    if opening.closed then
+                        Just
+                            { acc = []
+                            , remainder = rest
+                            }
+                    else
+                        openLoop
+                            { acc = []
+                            , remainder = rest
+                            }
+            in
+            case maybe of
+                Just result ->
+                    result.acc
+                        |> Regular
+                        |> Node
+                                { key = Nothing
+                                , tagName = opening.tagName
+                                }
+                                opening.attributes
+                        |> (\h ->
+                                { acc = addHtmlToList h acc
+                                , remainder = result.remainder
+                                }
+                            )
+                        |> translateRaw
+
+                Nothing ->
+                    translateRaw
+                        { acc = addHtmlToList (TextNode opening.origin) acc
+                        , remainder = rest
+                        }
+
+        ClosingTag _ ->
+            { acc = acc
+            , remainder = rest
+            , closed = True
+            , end = False
+            }
+
+
+{-| Intermediate HTML parser.
+-}
 parserRaw : Parser (Array (RawHtml msg))
 parserRaw =
     loop [] parserLoop
@@ -243,7 +260,7 @@ closingTagParser :
 closingTagParser =
     succeed
         (\start tagName end source ->
-            { tagName = tagName
+            { tagName = tagName -- TODO: Rename to `source`
             , origin = String.slice start end source
             }
         )
@@ -373,7 +390,7 @@ openingTagParser { closed } =
         (\start tagName attributes end source ->
             { tagName = tagName
             , attributes = attributes
-            , closed = closed
+            , closed = closed -- TODO: Rename to `source`
             , origin = String.slice start end source
             }
         )
