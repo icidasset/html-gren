@@ -53,7 +53,7 @@ chompIfChar c =
 
 chompOne : Parser {}
 chompOne =
-    chompIf (always True)
+    chompIf (\_ -> True)
 
 
 chompOneOrMore : (Char -> Bool) -> Parser {}
