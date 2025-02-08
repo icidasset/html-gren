@@ -31,7 +31,7 @@ toString options =
                 in
                 String.append
                     prefix
-                    (case descendants of
+                    (when descendants is
                         [] ->
                             parent.tag
                                 { isClosed = True
@@ -57,7 +57,7 @@ toString options =
         , processingInstruction = \_ processingInstruction -> "<?" ++ processingInstruction ++ "?>"
         , text =
             \{ parentNodeProperties } ->
-                case parentNodeProperties of
+                when parentNodeProperties is
                     Just { tagName = "script" } ->
                         identity
 
@@ -74,30 +74,30 @@ attributesToString : Array (Attribute msg) -> Array String
 attributesToString attrs =
     let
         collect attr acc =
-            case attr of
-                Attribute "class" value ->
+            when attr is
+                Attribute { key = "class", value } ->
                     { acc | classes = Array.pushLast value acc.classes }
 
-                Attribute key value ->
+                Attribute { key, value } ->
                     { acc | rest = Array.pushLast (buildProp key value) acc.rest }
 
-                BoolProperty string isEnabled ->
+                BoolProperty { key = string, value = isEnabled } ->
                     if isEnabled then
                         { acc | rest = Array.pushLast (propName string) acc.rest }
                     else
                         acc
 
-                Event _ _ ->
+                Event _ ->
                     -- Events are ignored
                     acc
 
-                StringProperty key value ->
-                    collect (Attribute (propName key) value) acc
+                StringProperty { key, value } ->
+                    collect (Attribute { key = (propName key), value = value }) acc
 
-                Style key value ->
+                Style { key, value } ->
                     { acc | styles = Array.pushLast (escapeAttributePart key ++ ": " ++ escapeAttributePart value) acc.styles }
 
-                ValueProperty key value ->
+                ValueProperty { key, value } ->
                     { acc | rest = Array.pushLast (buildProp (propName key) (Json.Encode.encode 0 value)) acc.rest }
     in
     attrs
@@ -163,7 +163,7 @@ hyphenate =
     String.foldl
         (\char acc ->
             if Char.isUpper char then
-                acc ++ "-" ++ String.fromChar (Char.toLower char)
+                acc ++ "-" ++ (char |> String.fromChar |> String.toLower)
             else
                 acc ++ String.fromChar char
         )
@@ -172,7 +172,7 @@ hyphenate =
 
 propName : String -> String
 propName prop =
-    case prop of
+    when prop is
         "className" ->
             "class"
 
@@ -200,7 +200,7 @@ tag tagName attributes { isClosed } =
     "<"
         ++ String.join " " (Array.pushFirst tagName (attributesToString attributes))
         ++ (if isClosed then
-                case lowercaseTagName of
+                when lowercaseTagName is
                     "area" ->
                         " />"
 

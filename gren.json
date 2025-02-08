@@ -13,9 +13,9 @@
     "Transmutable.Html.Keyed",
     "Transmutable.Html.Parser"
   ],
-  "gren-version": "0.4.0 <= v < 0.5.0",
+  "gren-version": "0.5.0 <= v < 0.6.0",
   "dependencies": {
-    "gren-lang/core": "5.0.0 <= v < 6.0.0",
-    "gren-lang/parser": "4.0.0 <= v < 5.0.0"
+    "gren-lang/core": "6.0.0 <= v < 7.0.0",
+    "gren-lang/parser": "5.0.0 <= v < 6.0.0"
   }
 }

@@ -215,7 +215,10 @@ touch, scroll, and wheel events in some browsers.
 -}
 on : String -> Json.Decoder msg -> Attribute msg
 on event decoder =
-    Interior.Event event (Interior.Normal decoder)
+    Interior.Event
+        { name = event
+        , decoder = Interior.Normal decoder
+        }
 
 
 {-| Create an event listener that may [`stopPropagation`][stop]. Your decoder
@@ -237,7 +240,10 @@ stopPropagationOn :
         }
     -> Attribute msg
 stopPropagationOn event decoder =
-    Interior.Event event (Interior.MayStopPropagation decoder)
+    Interior.Event 
+        { name = event
+        , decoder = Interior.MayStopPropagation decoder
+        }
 
 
 {-| Create an event listener that may [`preventDefault`][prevent]. Your decoder
@@ -265,7 +271,10 @@ preventDefaultOn :
         }
     -> Attribute msg
 preventDefaultOn event decoder =
-    Interior.Event event (Interior.MayPreventDefault decoder)
+    Interior.Event
+        { name = event
+        , decoder = Interior.MayPreventDefault decoder
+        }
 
 
 {-| Create an event listener that may [`stopPropagation`][stop] or
@@ -288,7 +297,10 @@ custom :
         }
     -> Attribute msg
 custom event decoder =
-    Interior.Event event (Interior.Custom decoder)
+    Interior.Event
+        { name = event
+        , decoder = Interior.Custom decoder
+        }
 
 
 

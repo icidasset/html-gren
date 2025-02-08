@@ -131,7 +131,7 @@ specificAmountOf amount parser =
                     )
             |> andThen
                     (\maybe ->
-                        case maybe of
+                        when maybe is
                             Just x ->
                                 succeed x
 
