@@ -85,8 +85,8 @@ suggest that this should primarily be specified in CSS files. So the general
 recommendation is to use this function lightly.
 -}
 style : String -> String -> Attribute msg
-style =
-    Style
+style key val =
+    Style { key = key, value = val}
 
 
 {-| This function makes it easier to build a space-separated class attribute.
@@ -116,7 +116,7 @@ classList :
     -> Attribute msg
 classList classes =
     classes
-        |> Array.filter .enabled
+        |> Array.keepIf .enabled
         |> Array.map .class
         |> String.join " "
         |> class
@@ -140,20 +140,20 @@ Read more about the difference between properties and attributes [here][].
 [here]: https://github.com/elm/html/blob/master/properties-vs-attributes.md
 -}
 property : String -> Json.Value -> Attribute msg
-property =
-    ValueProperty
+property key val =
+    ValueProperty { key = key, value = val }
 
 
 {-|-}
 stringProperty : String -> String -> Attribute msg
-stringProperty =
-    StringProperty
+stringProperty key val =
+    StringProperty { key = key, value = val }
 
 
 {-|-}
 boolProperty : String -> Bool -> Attribute msg
-boolProperty =
-    BoolProperty
+boolProperty key val =
+    BoolProperty { key = key, value = val }
 
 
 {-| Create *attributes*, like saying `domNode.setAttribute('class', 'greeting')`
@@ -168,8 +168,8 @@ Read more about the difference between properties and attributes [here][].
 [here]: https://github.com/elm/html/blob/master/properties-vs-attributes.md
 -}
 attribute : String -> String -> Attribute msg
-attribute =
-    Attribute
+attribute key val =
+    Attribute { key = key, value = val }
 
 
 

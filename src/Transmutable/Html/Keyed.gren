@@ -38,19 +38,28 @@ node tagName attrs descendants =
     descendants
         |> Array.map
                 (\item ->
-                    case item.html of
-                        Node props itemAttrs itemDescendants ->
-                            Node { props | key = Just item.key } itemAttrs itemDescendants
+                    when item.html is
+                        Node { properties, attributes = itemAttrs, descendants = itemDescendants } ->
+                            Node 
+                                { properties = { properties | key = Just item.key }
+                                , attributes = itemAttrs
+                                , descendants = itemDescendants
+                                }
 
                         h ->
                             h
                 )
         |> Interior.Regular
-        |> Interior.Node
-                { key = Nothing
-                , tagName = tagName
-                }
-                attrs
+        |> (\d ->
+                Interior.Node
+                    { properties = 
+                        { key = Nothing
+                        , tagName = tagName
+                        }
+                    , attributes = attrs
+                    , descendants = d
+                    }
+            )
 
 
 {-|-}

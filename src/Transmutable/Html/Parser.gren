@@ -83,7 +83,7 @@ translateRaw :
        , end : Bool
        }
 translateRaw { acc, remainder } =
-    case Array.popFirst remainder of
+    when Array.popFirst remainder is
         Just { first, rest } ->
             translateRawElement acc first rest
 
@@ -105,7 +105,7 @@ translateRawElement :
        , end : Bool
        }
 translateRawElement acc first rest =
-    case first of
+    when first is
         Html h ->
             translateRaw
                 { acc = addHtmlToList h acc
@@ -147,15 +147,20 @@ translateRawElement acc first rest =
                             , remainder = rest
                             }
             in
-            case maybe of
+            when maybe is
                 Just result ->
                     result.acc
                         |> Regular
-                        |> Node
-                                { key = Nothing
-                                , tagName = opening.tagName
-                                }
-                                opening.attributes
+                        |> (\d ->
+                                Node
+                                    { properties = 
+                                        { key = Nothing
+                                        , tagName = opening.tagName
+                                        }
+                                    , attributes = opening.attributes
+                                    , descendants = d
+                                    }
+                            )
                         |> (\h ->
                                 { acc = addHtmlToList h acc
                                 , remainder = result.remainder
@@ -357,7 +362,7 @@ nonRecursiveNodeParser =
                 )
         |> andThen
                 (\{ opening, closing, contents } ->
-                    (case contents of
+                    (when contents is
                         Just c ->
                             [ TextNode c
                             ]
@@ -366,11 +371,16 @@ nonRecursiveNodeParser =
                             []
                     )
                         |> Regular
-                        |> Node
-                                { key = Nothing
-                                , tagName = opening.tagName
-                                }
-                                opening.attributes
+                        |> (\d ->
+                                Node
+                                    { properties = 
+                                        { key = Nothing
+                                        , tagName = opening.tagName
+                                        }
+                                    , attributes = opening.attributes
+                                    , descendants = d
+                                    }
+                            )
                         |> succeed
                 )
 
@@ -430,7 +440,7 @@ tagSpaceParser =
                             String.toArray string
 
                         lineEndings =
-                            Array.filter (\c -> c == '\n' || c == '\r') chars
+                            Array.keepIf (\c -> c == '\n' || c == '\r') chars
                     in
                     if Array.length lineEndings > 1 then
                         problem "Cannot contain multiple line endings"
@@ -458,15 +468,21 @@ tagNameParser =
 
 
 {-|-}
+makeAttribute : String -> String -> Attribute msg
+makeAttribute key value =
+    Attribute { key = key, value = value }
+
+
+{-|-}
 attributeParser : Parser (Attribute msg)
 attributeParser =
     oneOf
-        [ succeed Attribute
+        [ succeed makeAttribute
             |. tagSpaceParser
             |= attributeNameParser
             |= attributeValueSpecificationParser
             |> backtrackable
-        , succeed (\k -> Attribute k "")
+        , succeed (\k -> makeAttribute k "")
             |. tagSpaceParser
             |= attributeNameParser
             |> identity
@@ -537,12 +553,12 @@ textParser html =
 
 textLoop : Array (RawHtml msg) -> String -> Step (Array (RawHtml msg)) (Array (RawHtml msg))
 textLoop html text =
-    case text of
+    when text is
         "" ->
             Done html
 
         _ ->
-            case Array.last html of
+            when Array.last html is
                 Just (Html (TextNode previousText)) ->
                     Loop (Array.pushLast (Html (TextNode (previousText ++ text))) (Array.dropLast 1 html))
 
@@ -556,9 +572,9 @@ textLoop html text =
 
 addHtmlToList : Html msg -> Array (Html msg) -> Array (Html msg)
 addHtmlToList html array =
-    case Array.popLast array of
+    when Array.popLast array is
         Just { last = TextNode t1, initial } ->
-            case html of
+            when html is
                 TextNode t2 ->
                     Array.pushLast (TextNode (t1 ++ t2)) initial
 

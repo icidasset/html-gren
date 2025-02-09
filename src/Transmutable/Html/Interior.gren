@@ -30,7 +30,7 @@ type Html msg
     = Cdata String
     | Comment String
     | Declaration String
-    | Node NodeProperties (Array (Attribute msg)) (Descendants msg)
+    | Node { properties : NodeProperties, attributes : (Array (Attribute msg)), descendants : (Descendants msg) }
     | ProcessingInstruction String
     | TextNode String
 
@@ -48,12 +48,12 @@ type alias NodeProperties =
 
 {-|-}
 type Attribute msg
-    = Attribute String String
-    | BoolProperty String Bool
-    | Event String (EventDecoder msg)
-    | StringProperty String String
-    | Style String String
-    | ValueProperty String Value
+    = Attribute { key : String, value : String }
+    | BoolProperty { key : String, value : Bool }
+    | Event { name : String, decoder : (EventDecoder msg) }
+    | StringProperty { key : String, value : String }
+    | Style { key : String, value : String }
+    | ValueProperty { key : String, value : Value }
 
 
 {-|-}
@@ -92,7 +92,7 @@ type EventDecoder msg
 {-|-}
 map : (a -> b) -> Html a -> Html b
 map f html =
-    case html of
+    when html is
         Cdata a ->
             Cdata a
 
@@ -102,8 +102,12 @@ map f html =
         Declaration a ->
             Declaration a
 
-        Node props attrs descendants ->
-            Node props (Array.map (mapAttribute f) attrs) (mapDescendants f descendants)
+        Node { properties, attributes, descendants } ->
+            Node
+                { properties = properties
+                , attributes = (Array.map (mapAttribute f) attributes)
+                , descendants = (mapDescendants f descendants)
+                }
 
         ProcessingInstruction a ->
             ProcessingInstruction a
@@ -114,36 +118,39 @@ map f html =
 
 mapAttribute : (a -> b) -> Attribute a -> Attribute b
 mapAttribute fn attribute =
-    case attribute of
-        Attribute key value ->
-            Attribute key value
+    when attribute is
+        Attribute a ->
+            Attribute a
 
-        Event name eventDecoder ->
-            Event name (mapEventDecoder fn eventDecoder)
+        Event { name = name, decoder = eventDecoder } ->
+            Event 
+                { name = name
+                , decoder = (mapEventDecoder fn eventDecoder)
+                }
 
-        BoolProperty key value ->
-            BoolProperty key value
+        BoolProperty b ->
+            BoolProperty b
 
-        StringProperty key value ->
-            StringProperty key value
+        StringProperty s ->
+            StringProperty s
 
-        Style key value ->
-            Style key value
+        Style s ->
+            Style s
 
-        ValueProperty key value ->
-            ValueProperty key value
+        ValueProperty v ->
+            ValueProperty v
 
 
 mapDescendants : (a -> b) -> Descendants a -> Descendants b
 mapDescendants fn descendants =
-    case descendants of
+    when descendants is
         Regular nodes ->
             Regular (Array.map (map fn) nodes)
 
 
 mapEventDecoder : (a -> b) -> EventDecoder a -> EventDecoder b
 mapEventDecoder fn eventDecoder =
-    case eventDecoder of
+    when eventDecoder is
         Normal d ->
             Normal (Json.Decode.map fn d)
 
@@ -228,16 +235,16 @@ transmute_ :
     -> Html msg
     -> transmuted
 transmute_ context manager html =
-    case html of
-        Node props attributes descendants ->
+    when html is
+        Node { properties, attributes, descendants } ->
             let
                 xmlns =
                     -- Check for a `xmlns` attribute which will change the active namespace
                     attributes
                         |> Array.findLast
                                 (\attribute ->
-                                    case attribute of
-                                        Attribute "xmlns" ns ->
+                                    when attribute is
+                                        Attribute { key = "xmlns", value = ns } ->
                                             True
 
                                         _ ->
@@ -245,8 +252,8 @@ transmute_ context manager html =
                                 )
                         |> Maybe.andThen
                                 (\attribute ->
-                                    case attribute of
-                                        Attribute "xmlns" ns ->
+                                    when attribute.value is
+                                        Attribute { key = "xmlns", value = ns } ->
                                             Just ns
 
                                         _ ->
@@ -256,7 +263,7 @@ transmute_ context manager html =
                 contextWithXmlns =
                     -- If the `xmlns` attribute is present,
                     -- the active XML namespace will change.
-                    case xmlns of
+                    when xmlns is
                         Just ns ->
                             { context | namespace = Just ns }
 
@@ -266,12 +273,12 @@ transmute_ context manager html =
                 contextWithParent =
                     { contextWithXmlns
                         | level = context.level + 1
-                        , parentNodeProperties = Just props
+                        , parentNodeProperties = Just properties
                     }
             in
             manager.injectDescendants
-                (manager.node props attributes contextWithParent)
-                (case descendants of
+                (manager.node properties attributes contextWithParent)
+                (when descendants is
                     Regular array ->
                         Array.map (transmute_ contextWithParent manager) array
                 )

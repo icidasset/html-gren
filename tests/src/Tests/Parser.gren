@@ -23,19 +23,19 @@ commonmark =
         "Commonmark Spec Examples (612-632)"
         [ testHtml
             "<a></a><bab></bab><c2c></c2c>"
-            [ Node
+            [ makeNode
                 { key = Nothing
                 , tagName = "a"
                 }
                 []
                 (Regular [])
-            , Node
+            , makeNode
                 { key = Nothing
                 , tagName = "bab"
                 }
                 []
                 (Regular [])
-            , Node
+            , makeNode
                 { key = Nothing
                 , tagName = "c2c"
                 }
@@ -45,13 +45,13 @@ commonmark =
             -- 
         , testHtml
             "<a/><b2/>"
-            [ Node
+            [ makeNode
                 { key = Nothing
                 , tagName = "a"
                 }
                 []
                 (Regular [])
-            , Node
+            , makeNode
                 { key = Nothing
                 , tagName = "b2"
                 }
@@ -62,17 +62,17 @@ commonmark =
         , -- 
           testHtml
             "<a  /><b2\ndata=\"foo\" />"
-            [ Node
+            [ makeNode
                 { key = Nothing
                 , tagName = "a"
                 }
                 []
                 (Regular [])
-            , Node
+            , makeNode
                 { key = Nothing
                 , tagName = "b2"
                 }
-                [ Attribute "data" "foo"
+                [ makeAttribute "data" "foo"
                 ]
                 (Regular [])
             ]
@@ -80,14 +80,14 @@ commonmark =
         , -- 
           testHtml
             "<a foo=\"bar\" bam = \'baz <em>\"</em>\' _boolean zoop:33=zoop:33 />"
-            [ Node
+            [ makeNode
                 { key = Nothing
                 , tagName = "a"
                 }
-                [ Attribute "foo" "bar"
-                , Attribute "bam" "baz <em>\"</em>"
-                , Attribute "_boolean" ""
-                , Attribute "zoop:33" "zoop:33"
+                [ makeAttribute "foo" "bar"
+                , makeAttribute "bam" "baz <em>\"</em>"
+                , makeAttribute "_boolean" ""
+                , makeAttribute "zoop:33" "zoop:33"
                 ]
                 (Regular [])
             ]
@@ -96,11 +96,11 @@ commonmark =
           testHtml
             "Foo <responsive-image src=\"foo.jpg\" />"
             [ TextNode "Foo "
-            , Node
+            , makeNode
                 { key = Nothing
                 , tagName = "responsive-image"
                 }
-                [ Attribute "src" "foo.jpg"
+                [ makeAttribute "src" "foo.jpg"
                 ]
                 (Regular [])
             ]
@@ -138,13 +138,13 @@ commonmark =
         , -- 
           testHtml
             "<a></a><foo></foo >"
-            [ Node
+            [ makeNode
                 { key = Nothing
                 , tagName = "a"
                 }
                 []
                 (Regular [])
-            , Node
+            , makeNode
                 { key = Nothing
                 , tagName = "foo"
                 }
@@ -202,11 +202,11 @@ commonmark =
           testHtml
             "foo <a href=\"&ouml;\" />"
             [ TextNode "foo "
-            , Node
+            , makeNode
                 { key = Nothing
                 , tagName = "a"
                 }
-                [ Attribute "href" "&ouml;"
+                [ makeAttribute "href" "&ouml;"
                 ]
                 (Regular [])
             ]
@@ -215,11 +215,11 @@ commonmark =
           testHtml
             "foo <a href=\"\\*\" />"
             [ TextNode "foo "
-            , Node
+            , makeNode
                 { key = Nothing
                 , tagName = "a"
                 }
-                [ Attribute "href" "\\*"
+                [ makeAttribute "href" "\\*"
                 ]
                 (Regular [])
             ]
@@ -236,19 +236,19 @@ nesting =
         "Nesting"
         [ testHtml
             "<a><b><c /></b></a><d><span-1></span-1 ></d\n><e /><f\n></f\n>"
-            [ Node
+            [ makeNode
                 { key = Nothing
                 , tagName = "a"
                 }
                 []
                 (Regular
-                    [ Node
+                    [ makeNode
                         { key = Nothing
                         , tagName = "b"
                         }
                         []
                         (Regular
-                            [ Node
+                            [ makeNode
                                 { key = Nothing
                                 , tagName = "c"
                                 }
@@ -258,13 +258,13 @@ nesting =
                         )
                     ]
                 )
-            , Node
+            , makeNode
                 { key = Nothing
                 , tagName = "d"
                 }
                 []
                 (Regular
-                    [ Node
+                    [ makeNode
                         { key = Nothing
                         , tagName = "span-1"
                         }
@@ -272,13 +272,13 @@ nesting =
                         (Regular [])
                     ]
                 )
-            , Node
+            , makeNode
                 { key = Nothing
                 , tagName = "e"
                 }
                 []
                 (Regular [])
-            , Node
+            , makeNode
                 { key = Nothing
                 , tagName = "f"
                 }
@@ -289,7 +289,7 @@ nesting =
         , -- 
           testHtml
             "<script><span>Does not need to be parsed</span></script>"
-            [ Node
+            [ makeNode
                 { key = Nothing
                 , tagName = "script"
                 }
@@ -303,25 +303,25 @@ nesting =
         , -- Nesting of elements with the same name
           testHtml
             "<div><div><div><span>A</span></div></div></div>"
-            [ Node
+            [ makeNode
                 { key = Nothing
                 , tagName = "div"
                 }
                 []
                 (Regular
-                    [ Node
+                    [ makeNode
                         { key = Nothing
                         , tagName = "div"
                         }
                         []
                         (Regular
-                            [ Node
+                            [ makeNode
                                 { key = Nothing
                                 , tagName = "div"
                                 }
                                 []
                                 (Regular
-                                    [ Node
+                                    [ makeNode
                                         { key = Nothing
                                         , tagName = "span"
                                         }
@@ -341,25 +341,25 @@ nesting =
         , -- 
           testHtml
             "<b><b><bold><BOLD>text</bold></BOLD></b></b>"
-            [ Node
+            [ makeNode
                 { key = Nothing
                 , tagName = "b"
                 }
                 []
                 (Regular
-                    [ Node
+                    [ makeNode
                         { key = Nothing
                         , tagName = "b"
                         }
                         []
                         (Regular
-                            [ Node
+                            [ makeNode
                                 { key = Nothing
                                 , tagName = "bold"
                                 }
                                 []
                                 (Regular
-                                    [ Node
+                                    [ makeNode
                                         { key = Nothing
                                         , tagName = "BOLD"
                                         }
@@ -390,3 +390,20 @@ testHtml string expectedResult =
                 |> Html.parse
                 |> Expect.equal (Ok expectedResult)
         )
+
+
+makeNode : NodeProperties -> Array (Attribute msg) -> Descendants msg -> Html msg
+makeNode properties attributes descendants =
+    Node
+        { properties = properties
+        , attributes = attributes
+        , descendants = descendants
+        }
+
+
+makeAttribute : String -> String -> Attribute msg
+makeAttribute key value =
+    Attribute
+        { key = key
+        , value = value
+        }

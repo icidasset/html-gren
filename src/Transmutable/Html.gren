@@ -121,11 +121,13 @@ is not covered by the helper functions in this library.
 node : String -> Array (Attribute msg) -> Array (Html msg) -> Html msg
 node tagName attributes children =
     Interior.Node
-        { key = Nothing
-        , tagName = tagName
+        { properties = 
+            { key = Nothing
+            , tagName = tagName
+            }
+        , attributes = attributes
+        , descendants = (Interior.Regular children)
         }
-        attributes
-        (Interior.Regular children)
 
 
 {-| Just put plain text in the DOM. It will escape the string so that it appears
