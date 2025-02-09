@@ -153,7 +153,7 @@ translateRawElement acc first rest =
                         |> Regular
                         |> (\d ->
                                 Node
-                                    { props = 
+                                    { properties = 
                                         { key = Nothing
                                         , tagName = opening.tagName
                                         }
@@ -373,7 +373,7 @@ nonRecursiveNodeParser =
                         |> Regular
                         |> (\d ->
                                 Node
-                                    { props = 
+                                    { properties = 
                                         { key = Nothing
                                         , tagName = opening.tagName
                                         }

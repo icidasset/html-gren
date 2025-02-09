@@ -393,9 +393,9 @@ testHtml string expectedResult =
 
 
 makeNode : NodeProperties -> Array (Attribute msg) -> Descendants msg -> Html msg
-makeNode props attributes descendants =
+makeNode properties attributes descendants =
     Node
-        { props = props
+        { properties = properties
         , attributes = attributes
         , descendants = descendants
         }

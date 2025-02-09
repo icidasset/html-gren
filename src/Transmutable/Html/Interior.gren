@@ -30,7 +30,7 @@ type Html msg
     = Cdata String
     | Comment String
     | Declaration String
-    | Node { props : NodeProperties, attributes : (Array (Attribute msg)), descendants : (Descendants msg) }
+    | Node { properties : NodeProperties, attributes : (Array (Attribute msg)), descendants : (Descendants msg) }
     | ProcessingInstruction String
     | TextNode String
 
@@ -102,9 +102,9 @@ map f html =
         Declaration a ->
             Declaration a
 
-        Node { props, attributes, descendants } ->
+        Node { properties, attributes, descendants } ->
             Node
-                { props = props
+                { properties = properties
                 , attributes = (Array.map (mapAttribute f) attributes)
                 , descendants = (mapDescendants f descendants)
                 }
@@ -236,7 +236,7 @@ transmute_ :
     -> transmuted
 transmute_ context manager html =
     when html is
-        Node { props, attributes, descendants } ->
+        Node { properties, attributes, descendants } ->
             let
                 xmlns =
                     -- Check for a `xmlns` attribute which will change the active namespace
@@ -273,11 +273,11 @@ transmute_ context manager html =
                 contextWithParent =
                     { contextWithXmlns
                         | level = context.level + 1
-                        , parentNodeProperties = Just props
+                        , parentNodeProperties = Just properties
                     }
             in
             manager.injectDescendants
-                (manager.node props attributes contextWithParent)
+                (manager.node properties attributes contextWithParent)
                 (when descendants is
                     Regular array ->
                         Array.map (transmute_ contextWithParent manager) array

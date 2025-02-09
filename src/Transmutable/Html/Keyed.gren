@@ -39,9 +39,9 @@ node tagName attrs descendants =
         |> Array.map
                 (\item ->
                     when item.html is
-                        Node { props, attributes = itemAttrs, descendants = itemDescendants } ->
+                        Node { properties, attributes = itemAttrs, descendants = itemDescendants } ->
                             Node 
-                                { props = { props | key = Just item.key }
+                                { properties = { properties | key = Just item.key }
                                 , attributes = itemAttrs
                                 , descendants = itemDescendants
                                 }
@@ -52,7 +52,7 @@ node tagName attrs descendants =
         |> Interior.Regular
         |> (\d ->
                 Interior.Node
-                    { props = 
+                    { properties = 
                         { key = Nothing
                         , tagName = tagName
                         }

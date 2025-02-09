@@ -121,7 +121,7 @@ is not covered by the helper functions in this library.
 node : String -> Array (Attribute msg) -> Array (Html msg) -> Html msg
 node tagName attributes children =
     Interior.Node
-        { props = 
+        { properties = 
             { key = Nothing
             , tagName = tagName
             }
