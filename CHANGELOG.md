@@ -1,5 +1,10 @@
 # Changelog
 
+## 6.0.0
+
+Update to Gren v0.6.x
+
+
 ## 5.0.0
 
 Update to Gren v0.5.x
