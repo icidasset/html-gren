@@ -2,3 +2,4 @@
 .gren
 node_modules
 tests/app
+gren_packages
