@@ -24,10 +24,13 @@ toString options =
             \parent descendants context ->
                 let
                     prefix =
-                        ' '
-                            |> Array.repeat (options.indent * (context.level - 2))
-                            |> String.fromArray
-                            |> String.append "\n"
+                        if useLineBreaks then
+                            ' '
+                                |> Array.repeat (options.indent * (context.level - 2))
+                                |> String.fromArray
+                                |> String.append "\n"
+                        else
+                            ""
                 in
                 String.append
                     prefix

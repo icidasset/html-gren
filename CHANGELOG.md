@@ -1,5 +1,10 @@
 # Changelog
 
+## 6.0.1
+
+Fixed `Transmutable.Html.toString` and `Transmutable.Html.arrayToString` inserting a newline after every element, even with `indent = 0`. The serializer no longer injects any whitespace unless pretty-printing was requested via an indent greater than zero.
+
+
 ## 6.0.0
 
 Update to Gren v0.6.x
