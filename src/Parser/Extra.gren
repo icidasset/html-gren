@@ -61,6 +61,30 @@ chompOneOrMore predicate =
     chompIf predicate |. chompWhile predicate
 
 
+{-| The text up to the needle, which `Parser.chompUntil` consumes along the way.
+-}
+chompThrough : String -> Parser String
+chompThrough needle =
+    chompUntil needle
+        |> getChompedString
+        |> map (String.dropLast (charCount needle))
+
+
+{-| Stops *before* the needle, unlike `Parser.chompUntil`, which consumes it.
+Needed where a following parser expects to start on the needle itself.
+-}
+chompToNeedle : String -> Parser {}
+chompToNeedle needle =
+    remainingFromOffset
+        |> andThen
+                (\remaining ->
+                    if String.contains needle remaining then
+                        chompUnits (charCount (beforeNeedle needle remaining))
+                    else
+                        problem "chompToNeedle: needle not found"
+                )
+
+
 many : Parser a -> Parser (Array a)
 many p =
     loop [] (manyHelp p)
@@ -147,6 +171,42 @@ specificChar c =
 
 
 -- ㊙️
+
+
+beforeNeedle : String -> String -> String
+beforeNeedle needle remaining =
+    remaining
+        |> String.split needle
+        |> Array.first
+        |> Maybe.withDefault remaining
+
+
+-- Code points, not UTF-16 units: chompIf advances one code point per step.
+charCount : String -> Int
+charCount str =
+    str
+        |> String.toArray
+        |> Array.length
+
+
+chompUnits : Int -> Parser {}
+chompUnits amount =
+    loop 0 <| \step ->
+        if step >= amount then
+            succeed (Done {})
+        else
+            succeed (\_ -> Loop (step + 1))
+                |= chompIf (\_ -> True)
+
+
+remainingFromOffset : Parser String
+remainingFromOffset =
+    succeed
+        (\offset source ->
+            String.sliceUnits offset (String.unitLength source) source
+        )
+        |= getOffset
+        |= getSource
 
 
 manyHelp : Parser a -> Array a -> Parser (Step (Array a) (Array a))
