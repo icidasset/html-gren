@@ -15,6 +15,63 @@ tests =
         "HTML parsing"
         [ commonmark
         , nesting
+        , needleSemantics
+        ]
+
+
+-- One delimiter per case
+needleSemantics =
+    describe
+        "Delimiters"
+        [ -- "-->"
+          testHtml
+            "<!--c-->"
+            [ Comment "c"
+            ]
+
+        , -- "]]>"
+          testHtml
+            "<![CDATA[c]]>"
+            [ Cdata "c"
+            ]
+
+        , -- ">"
+          testHtml
+            "<!DOCTYPE html>"
+            [ Declaration "DOCTYPE html"
+            ]
+
+        , -- "?>"
+          testHtml
+            "<?php echo $a; ?>"
+            [ ProcessingInstruction "php echo $a; "
+            ]
+
+        , -- "</", non-recursive path; nesting uses a different one
+          testHtml
+            "<script><span>t</span></script>"
+            [ makeNode
+                { key = Nothing
+                , tagName = "script"
+                }
+                []
+                (Regular
+                    [ TextNode "<span>t</span>"
+                    ]
+                )
+            ]
+
+        , -- closing quote of an attribute value
+          testHtml
+            "<a href=\"v\"></a>"
+            [ makeNode
+                { key = Nothing
+                , tagName = "a"
+                }
+                [ makeAttribute "href" "v"
+                ]
+                (Regular [])
+            ]
         ]
 
 

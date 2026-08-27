@@ -1,18 +1,20 @@
 {
   "type": "application",
   "platform": "node",
-  "source-directories": ["src"],
+  "source-directories": [
+    "src"
+  ],
   "gren-version": "0.6.6",
   "dependencies": {
     "direct": {
-      "gren-lang/core": "7.0.0",
+      "gren-lang/core": "7.2.0",
       "gren-lang/node": "6.0.0",
       "gren-lang/test": "5.0.0",
       "gren-lang/test-runner-node": "7.0.0",
       "icidasset/html-gren": "local:../"
     },
     "indirect": {
-      "gren-lang/parser": "6.0.0",
+      "gren-lang/parser": "6.2.1",
       "gren-lang/url": "6.0.0"
     }
   }

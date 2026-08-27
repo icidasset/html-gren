@@ -1,5 +1,10 @@
 # Changelog
 
+## 6.1.0
+
+Update to `gren-lang/parser` v6.2.x. Fixed comments, CDATA, declarations, processing instructions, quoted attribute values and the contents of elements such as `script` and `pre` falling back to plain text. From `gren-lang/parser` 6.1.0, `chompUntil` consumes the string it stops at; the parsers here now expect that.
+
+
 ## 6.0.1
 
 Fixed `Transmutable.Html.toString` and `Transmutable.Html.arrayToString` inserting a newline after every element, even with `indent = 0`. The serializer no longer injects any whitespace unless pretty-printing was requested via an indent greater than zero.

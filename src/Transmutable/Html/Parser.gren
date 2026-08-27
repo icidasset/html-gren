@@ -251,8 +251,7 @@ cdataParser : Parser (Html msg)
 cdataParser =
     succeed Cdata
         |. symbol "<![CDATA["
-        |= getChompedString (chompUntil "]]>")
-        |. symbol "]]>"
+        |= chompThrough "]]>"
         |> identity
 
 
@@ -283,8 +282,7 @@ commentParser : Parser (Html msg)
 commentParser =
     succeed identity
         |. symbol "<!--"
-        |= getChompedString (chompUntil "-->")
-        |. symbol "-->"
+        |= chompThrough "-->"
         |> andThen
                 (\comment ->
                     if String.startsWith ">" comment then
@@ -306,8 +304,7 @@ declarationParser =
     succeed (\a b -> Declaration (a ++ b))
         |. symbol "<!"
         |= getChompedString (chompIf Char.isAlpha)
-        |= getChompedString (chompUntil ">")
-        |. symbol ">"
+        |= chompThrough ">"
         |> identity
 
 
@@ -344,7 +341,7 @@ nonRecursiveNodeParser =
                                     , contents = a
                                     }
                                 )
-                                |= getChompedString (chompUntil "</")
+                                |= getChompedString (chompToNeedle "</")
                                 |= closingTagParser
                                 |> andThen
                                         (\{ closing, contents } ->
@@ -423,8 +420,7 @@ processingInstructionParser : Parser (Html msg)
 processingInstructionParser =
     succeed ProcessingInstruction
         |. symbol "<?"
-        |= getChompedString (chompUntil "?>")
-        |. symbol "?>"
+        |= chompThrough "?>"
         |> identity
 
 
@@ -529,10 +525,14 @@ quotedAttributeValueParser : Parser String
 quotedAttributeValueParser =
     andThen
         (\char ->
-            succeed identity
-                |= getChompedString (chompUntilEndOr (String.fromChar char))
-                |. specificChar char
-                |> identity
+            getChompedString (chompUntilEndOr (String.fromChar char))
+                |> andThen
+                        (\chomped ->
+                            if String.endsWith (String.fromChar char) chomped then
+                                succeed (String.dropLast 1 chomped)
+                            else
+                                problem "Unterminated attribute value"
+                        )
         )
         (oneOf
             [ specificChar '\"'

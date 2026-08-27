@@ -4,7 +4,7 @@
     "name": "icidasset/html-gren",
     "summary": "Transmutable HTML",
     "license": "BSD-3-Clause",
-    "version": "6.0.1",
+    "version": "6.1.0",
     "exposed-modules": [
         "Transmutable.Html",
         "Transmutable.Html.Attributes",
@@ -15,7 +15,7 @@
     ],
     "gren-version": "0.6.0 <= v < 0.7.0",
     "dependencies": {
-        "gren-lang/core": "7.0.0 <= v < 8.0.0",
-        "gren-lang/parser": "6.0.0 <= v < 7.0.0"
+        "gren-lang/core": "7.2.0 <= v < 8.0.0",
+        "gren-lang/parser": "6.2.0 <= v < 7.0.0"
     }
 }
